@@ -103,6 +103,18 @@ func (m *Machine) AfterTick() {
   }
 }
 
+/*
+0. Check completed and free + add them to waiting queue
+1. Assign processes to CPU and IO
+2. Increment counters
+3. Set completed states
+3. Debug output of current state
+*/
+// TODO: implmement completness checks and Queue management
+// TODO: remove Tick, replace with IncrementCounters for all and UpdateState for running process
+// TODO: add ready queue (cpu queue) and I/O queue (blocked state)
+// TODO: add Preemt mechanism to stop process and move it to queue
+
 func (m *Machine) Tick() {
   m.checkAndAssignStep()
   m.currentTick++

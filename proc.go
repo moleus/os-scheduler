@@ -40,6 +40,10 @@ func (p *Process) CurTask() *Task {
   return &p.tasks[p.currentTaskIndex]
 }
 
+func (p *Process) IsBlockedOrTerminated() bool {
+  return p.state == BLOCKED || p.state == TERMINATED
+}
+
 type Tickable interface {
   Tick()
 }

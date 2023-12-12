@@ -22,26 +22,46 @@ func (s *SelectionFIFO) Select(queue ProcQueue) (*Process, error) {
 
 // FCFS - sheduler manages specific resource
 type FCFS struct {
-  r Resourcer
+  resource Resourcer
   queue ProcQueue
   decisionMode DecisionMode
   selectionFunc SelectionFunction
 }
 
 func NewFCFS(r Resourcer) *FCFS {
-  return &FCFS{r: r}
+  return &FCFS{resource: r}
 }
 
 func (f *FCFS) Assign(p *Process) {
-  f.r.AssignToFree(p)
+  f.resource.AssignToFree(p)
+}
+
+func (f *FCFS) evictTerminatedProcs() {
+  r := f.resource
+  procs := r.GetProcs()
+  for _, p := range procs {
+    if p.IsBlockedOrTerminated() {
+      r.MustEvict(&p)
+    }
+  }
 }
 
 func (f *FCFS) Tick() {
+  f.evictTerminatedProcs()
+
+  freeRes, err := f.resource.GetFree();
+  if (err != nil) {
+    fmt.Println("Resource is bussy. Skipping scheduling")
+    return
+  }
+
   nextProc, err := f.selectionFunc.Select(f.queue)
   if (err != nil) {
     fmt.Println("No elements in queue %s", f.queue.name)
+    return
   }
-  f.Assign(nextProc)
+
+  freeRes.AssignToFree(nextProc)
 
   // iterate over
 }

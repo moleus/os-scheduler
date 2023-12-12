@@ -17,6 +17,8 @@ const (
 type Resourcer interface {
   GetFree() (*Resource, error)
   AssignToFree(p *Process) error
+  MustEvict(p *Process)
+  GetProcs() []Process
 }
 
 type Resource struct {
@@ -51,6 +53,24 @@ func (r *Resource) Tick() {
   }
 }
 
+func (r *Resource) GetProcs() []Process {
+  if r.state == BUSY {
+    return []Process{*r.currentProc}
+  }
+  return []Process{}
+}
+
+func (r *Resource) MustEvict(p *Process) {
+  if r.state == FREE {
+    panic(fmt.Sprintf("Can't evict process. Resource is free"))
+  }
+  if r.currentProc.id != p.id {
+    panic(fmt.Sprintf("Process %d is not running on resource", p.id))
+  }
+  r.state = FREE
+  r.currentProc = nil
+}
+
 func (cpu *MultiCoreCpu) GetFree() (*Resource, error) {
   for _, res := range cpu.cpus {
     if res.state == FREE {
@@ -73,4 +93,22 @@ func (cpu *MultiCoreCpu) Tick() {
   for _, res := range cpu.cpus {
     res.Tick()
   }
+}
+
+func (cpu *MultiCoreCpu) GetProcs() []Process {
+  procs := []Process{}
+  for _, res := range cpu.cpus {
+    procs = append(procs, res.GetProcs()...)
+  }
+  return procs
+}
+
+func (cpu *MultiCoreCpu) MustEvict(p *Process) {
+  for _, res := range cpu.cpus {
+    if res.state == BUSY && res.currentProc.id == p.id {
+      res.MustEvict(p)
+      return
+    }
+  }
+  panic(fmt.Sprintf("Process %d is not running on cpu", p.id))
 }

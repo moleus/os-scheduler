@@ -25,11 +25,7 @@ type Process struct {
   tasks []Task
 
   waitingTime int
-  cpuTimePassed int
-  cpuTimeTotal int
-
-  ioTimePassed int
-  ioTimeTotal int
+  blockedTime int
 }
 
 func (p *Process) EstimatedTaskTime() int {
@@ -48,19 +44,21 @@ type Tickable interface {
   Tick()
 }
 
+func (p *Process) Tick() {
+  p.IncrementCounters()
+  p.UpdateState()
+}
+
 func (p *Process) IncrementCounters() {
   switch p.state {
-  case DONE:
-    fmt.Println("Process %d is already done", p.id)
+  case TERMINATED:
+    fmt.Println("Process %d is already terminated", p.id)
   case READY:
     p.waitingTime++
+  case BLOCKED:
+    p.blockedTime++
   case RUNNING:
     p.CurTask().passedTime++
-    if p.CurTask().resouceType == CPU {
-      p.cpuTimePassed++
-    } else {
-      p.ioTimePassed++
-    }
   }
 
   if p.CurTask().passedTime > p.CurTask().time {
@@ -70,7 +68,7 @@ func (p *Process) IncrementCounters() {
 
 func (p *Process) UpdateState() {
   if p.currentTaskIndex == len(p.tasks) {
-    p.state = DONE
+    p.state = TERMINATED
     return
   }
   if p.CurTask().IsFinished() {

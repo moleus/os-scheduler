@@ -4,9 +4,10 @@ import "fmt"
 
 type ProcState int
 const (
-  READY ProcState = iota  // ready to run on CPU or IO
-  RUNNING  // CPU or IO
-  DONE
+  READY ProcState = iota  // ready to run on CPU
+  RUNNING  // runs on CPU
+  BLOCKED  // waits or reads from IO
+  TERMINATED  // completed
 )
 
 type Task struct {

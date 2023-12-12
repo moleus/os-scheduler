@@ -14,9 +14,9 @@ const (
   IO
 )
 
-type Holdable interface {
-  Hold(index int)
-  Release(index int)
+type Resourcer interface {
+  GetFree() (*Resource, error)
+  AssignToFree(p *Process) error
 }
 
 type Resource struct {
@@ -24,31 +24,23 @@ type Resource struct {
   currentProc *Process
 }
 
-type ResourceSet []Resource
-
-func (rs ResourceSet) Hold(index int) {
-  rs[index].state = BUSY
+type MultiCoreCpu struct {
+  cpus []Resource
 }
 
-func (rs ResourceSet) Release(index int) {
-  rs[index].state = FREE
+func (resource *Resource) GetFree() (*Resource, error) {
+  if resource.state == BUSY {
+    return nil, fmt.Errorf("Resource is busy")
+  }
+  return resource, nil
 }
 
-func (rs ResourceSet) GetFree() (*Resource, error) {
-  for _, res := range rs {
+func (cpu *MultiCoreCpu) GetFree() (*Resource, error) {
+  for _, res := range cpu.cpus {
     if res.state == FREE {
       return &res, nil
     }
   }
-  return nil, fmt.Errorf("No available resources")
-}
-
-func AssignToResource(resource *Resource, process *Process) {
-  if resource.state == BUSY {
-    panic("Resource is busy")
-  }
-  resource.state = BUSY
-  process.state = RUNNING
-  resource.currentProc = process
+  return nil, fmt.Errorf("No available cpus")
 }
 

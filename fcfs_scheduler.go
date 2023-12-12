@@ -32,10 +32,9 @@ import(
 
 
 type Scheduler interface {
-  Schedule()
-}
-
-type FCFS struct {
+  Tick()
+  AssignToResource(r Resourcer, p *Process)
+  ReleaseResource(r Resourcer)
 }
 
 type RR struct {
@@ -43,18 +42,22 @@ type RR struct {
 }
 
 type Machine struct {
-  Cpus []Resource
-  IoDevices []Resource
+  s Scheduler
+
+  Cpus *MultiCoreCpu
+  IO1 *Resource
+  IO2 *Resource
 
   CpuQueue []Process
-  IoQueue []Process
+  IO1Queue []Process
+  IO2Queue []Process
 
   allProcesses []Process
 
   currentTick int
 }
 
-func (m *Machine) CheckQueueAndAssign(queue []Process, rs ResourceSet) {
+func (m *Machine) CheckQueueAndAssign(queue []Process, rs Resourcer) {
   for _, proc := range queue {
     if proc.state != READY {
       panic("Process in Resource queue is not ready")
@@ -63,13 +66,13 @@ func (m *Machine) CheckQueueAndAssign(queue []Process, rs ResourceSet) {
     if err != nil {
       break
     }
-    AssignToResource(resource, &proc)
+    m.s.AssignToResource(resource, &proc)
     queue = queue[1:]
   }
 }
 
 func (m *Machine) debugPringState() {
-	for _, cpu := range m.Cpus {
+	for _, cpu := range m.Cpus.cpus {
 		s := 0
 		if cpu.state == BUSY {
 			s = 1
@@ -77,27 +80,25 @@ func (m *Machine) debugPringState() {
 		fmt.Printf("%d ", s)
 	}
 	fmt.Print("| ")
-	for _, io := range m.IoDevices {
-		s := 0
-		if io.state == BUSY {
-			s = 1
-		}
-		fmt.Printf("%d ", s)
-	}
+
+  fmt.Printf("%d ", m.IO1.state == BUSY)
+  fmt.Printf("%d", m.IO2.state == BUSY)
+
 	fmt.Println()
 }
 
 func (m *Machine) checkAndAssignStep() {
   // Assign waiting processes to resources
   m.CheckQueueAndAssign(m.CpuQueue, m.Cpus)
-  m.CheckQueueAndAssign(m.IoQueue, m.IoDevices)
+  m.CheckQueueAndAssign(m.IO1Queue, m.IO1)
+  m.CheckQueueAndAssign(m.IO2Queue, m.IO2)
 }
 
 func (m *Machine) AfterTick() {
   // Check if any process is done
-  for _, res := range m.Cpus {
+  for _, res := range m.Cpus.cpus {
     if res.state == BUSY && res.currentProc.CurTask().IsFinished() {
-      res.currentProc.state = DONE
+      res.currentProc.state = TERMINATED
       res.currentProc = nil
     }
   }
@@ -169,7 +170,6 @@ func scheduler(processes []Process) {
 
   }
 }
-
 
 func main() {
   fmt.Println("FCFS Scheduler")

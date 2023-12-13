@@ -34,7 +34,6 @@ func ParseTask(task string) Task {
 	case "CPU":
 		taskType = CPU
 	}
-	// parse number in brackets (xxx) -> xxx, (x) -> x
 	taskTime, err := strconv.Atoi(task[3 : len(task)-1])
 	if err != nil {
 		panic(err)

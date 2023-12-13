@@ -1,6 +1,5 @@
 # OS scheduling algorithms implementations
 
-
 # Theory
 *selection function* - chooses a process among ready for execution.
 Three quantities:
@@ -18,3 +17,15 @@ Three quantities:
 - service time (Ts) - total sum of CPU and IO cycles
 - turnaround time (Tr) - total time in system. Ts + waiting
 - normalized turnaround (Tr/Ts) - relative delay experienced by a process
+
+
+# Lab variant 91582
+program input:
+```
+CPU(6);IO2(16);CPU(6);IO2(20);CPU(10);IO1(16);CPU(8);IO2(20);CPU(2);IO1(12);CPU(4);IO1(18);
+CPU(4);IO2(18);CPU(10);IO2(16);CPU(4);IO1(14);CPU(10);IO1(12);CPU(6);IO1(20);
+CPU(2);IO2(12);CPU(6);IO1(16);CPU(4);IO2(12);CPU(2);IO1(14);CPU(6);IO1(12);
+CPU(10);IO1(20);CPU(4);IO2(12);CPU(10);IO1(10);CPU(8);IO2(14);CPU(10);IO1(18);
+CPU(8);IO2(14);CPU(8);IO2(20);CPU(8);IO1(10);CPU(6);IO2(20);CPU(8);IO2(18);CPU(2);IO2(20);
+CPU(12);IO2(10);CPU(48);IO2(18);CPU(12);IO1(18);CPU(24);IO1(14);CPU(48);IO1(20);CPU(24);IO2(14);CPU(36);IO2(10);
+```

@@ -33,8 +33,8 @@ func main() {
   }
 
   clock := &Clock{0}
-  io1Scheduler := NewFCFS("IO1", NewResource("IO1", IO), clock)
-  io2Scheduler := NewFCFS("IO2", NewResource("IO2", IO), clock)
+  io1Scheduler := NewFCFS("IO1", NewResource("IO1", IO1), clock)
+  io2Scheduler := NewFCFS("IO2", NewResource("IO2", IO2), clock)
   cpuScheduler := NewFCFS("CPUs", NewCpuPool(*cpuCount), clock)
   // Run scheduler
   machine := NewMachine(cpuScheduler, io1Scheduler, io2Scheduler, clock)

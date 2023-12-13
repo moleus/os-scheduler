@@ -103,7 +103,7 @@ func (p *Process) completeTask() {
     p.state = TERMINATED
     return
   }
-  switch p.CurTask().resouceType {
+  switch p.CurTask().ResouceType {
   case CPU:
     p.state = READY
   case IO1 | IO2:

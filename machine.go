@@ -125,7 +125,7 @@ func (m *Machine) checkForNewProcs() {
 func (m *Machine) handleAllEvictedProcs() {
   ep := m.cpuScheduler.GetEvictedProcs()
   for _, p := range ep {
-    m.handleEvictedProc(&p)
+    m.handleEvictedProc(p)
   }
 }
 

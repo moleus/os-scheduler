@@ -16,7 +16,7 @@ type Scheduler interface {
   Assign(p *Process)
   PushToQueue(p *Process)
   GetQueueLen() int
-  GetEvictedProcs() []Process
+  GetEvictedProcs() []*Process
 }
 
 type SelectionFunction interface {
@@ -38,7 +38,7 @@ type FCFS struct {
   selectionFunc SelectionFunction
   clock GlobalTimer
 
-  evictedProcs []Process
+  evictedProcs []*Process
 }
 
 func NewFCFS(name string, r Resourcer, clock GlobalTimer) *FCFS {
@@ -55,7 +55,7 @@ func (f *FCFS) evictTerminatedProcs() {
   for _, p := range procs {
     if p.IsBlockedOrTerminated() {
       r.MustEvict(&p)
-      f.evictedProcs = append(f.evictedProcs, p)
+      f.evictedProcs = append(f.evictedProcs, &p)
     }
   }
 }
@@ -95,6 +95,6 @@ func (f *FCFS) PushToQueue(p *Process) {
   f.queue.Push(p)
 }
 
-func (f *FCFS) GetEvictedProcs() []Process {
+func (f *FCFS) GetEvictedProcs() []*Process {
   return f.evictedProcs
 }

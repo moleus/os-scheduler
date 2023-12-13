@@ -35,13 +35,13 @@ func NewResource(name string, rType ResourceType) *Resource {
 }
 
 type CpuPool struct {
-  cpus []Resource
+  cpus []*Resource
 }
 
 func NewCpuPool(n int) *CpuPool {
-  cpus := []Resource{}
+  cpus := make([]*Resource, n, n)
   for i := 0; i < n; i++ {
-    cpus = append(cpus, *NewResource(fmt.Sprintf("CPU%d", i+1), CPU))
+    cpus[i] = NewResource(fmt.Sprintf("CPU%d", i+1), CPU)
   }
   return &CpuPool{cpus}
 }
@@ -95,7 +95,7 @@ func (r *Resource) MustEvict(p *Process) {
 func (cpu *CpuPool) GetFree() (*Resource, error) {
   for _, res := range cpu.cpus {
     if res.state == FREE {
-      return &res, nil
+      return res, nil
     }
   }
   return nil, fmt.Errorf("No available cpus")

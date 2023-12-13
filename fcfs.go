@@ -10,26 +10,35 @@ const (
   Preemptive
 )
 
+type Scheduler interface {
+  BeforeTick()
+  AfterTick()
+  Assign(p *Process)
+  PushToQueue(p *Process)
+}
+
 type SelectionFunction interface {
-  Select(queue ProcQueue) (*Process, error)
+  Select(queue *ProcQueue) (*Process, error)
 }
 
 type SelectionFIFO struct { }
 
-func (s *SelectionFIFO) Select(queue ProcQueue) (*Process, error) {
+func (s *SelectionFIFO) Select(queue *ProcQueue) (*Process, error) {
   return queue.Pop()
 }
 
 // FCFS - sheduler manages specific resource
 type FCFS struct {
+  name string
   resource Resourcer
-  queue ProcQueue
+  queue *ProcQueue
   decisionMode DecisionMode
   selectionFunc SelectionFunction
+  clock GlobalTimer
 }
 
-func NewFCFS(r Resourcer) *FCFS {
-  return &FCFS{resource: r}
+func NewFCFS(name string, r Resourcer, clock GlobalTimer) *FCFS {
+  return &FCFS{name: name, resource: r, queue: NewProcQueue(name, clock), decisionMode: NonPreemptive, selectionFunc: &SelectionFIFO{}, clock: clock}
 }
 
 func (f *FCFS) Assign(p *Process) {
@@ -64,4 +73,8 @@ func (f *FCFS) Tick() {
   freeRes.AssignToFree(nextProc)
 
   // iterate over
+}
+
+func (f *FCFS) PushToQueue(p *Process) {
+  f.queue.Push(p)
 }

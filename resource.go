@@ -22,13 +22,26 @@ type Resourcer interface {
 }
 
 type Resource struct {
+  name string
   state ResourceState
   currentProc *Process
   ProcRunningTime int
 }
 
-type MultiCoreCpu struct {
+func NewResource(name string) Resource {
+  return Resource{name, FREE, nil, 0}
+}
+
+type CpuPool struct {
   cpus []Resource
+}
+
+func NewCpuPool(n int) *CpuPool {
+  cpus := []Resource{}
+  for i := 0; i < n; i++ {
+    cpus = append(cpus, NewResource(fmt.Sprintf("CPU%d", i+1)))
+  }
+  return &CpuPool{cpus}
 }
 
 func (resource *Resource) GetFree() (*Resource, error) {
@@ -71,7 +84,7 @@ func (r *Resource) MustEvict(p *Process) {
   r.currentProc = nil
 }
 
-func (cpu *MultiCoreCpu) GetFree() (*Resource, error) {
+func (cpu *CpuPool) GetFree() (*Resource, error) {
   for _, res := range cpu.cpus {
     if res.state == FREE {
       return &res, nil
@@ -80,7 +93,7 @@ func (cpu *MultiCoreCpu) GetFree() (*Resource, error) {
   return nil, fmt.Errorf("No available cpus")
 }
 
-func (cpu *MultiCoreCpu) AssignToFree(p *Process) error {
+func (cpu *CpuPool) AssignToFree(p *Process) error {
   for _, res := range cpu.cpus {
     if res.state == FREE {
       return res.AssignToFree(p)
@@ -89,13 +102,13 @@ func (cpu *MultiCoreCpu) AssignToFree(p *Process) error {
   return fmt.Errorf("No available cpus")
 }
 
-func (cpu *MultiCoreCpu) Tick() {
+func (cpu *CpuPool) Tick() {
   for _, res := range cpu.cpus {
     res.Tick()
   }
 }
 
-func (cpu *MultiCoreCpu) GetProcs() []Process {
+func (cpu *CpuPool) GetProcs() []Process {
   procs := []Process{}
   for _, res := range cpu.cpus {
     procs = append(procs, res.GetProcs()...)
@@ -103,7 +116,7 @@ func (cpu *MultiCoreCpu) GetProcs() []Process {
   return procs
 }
 
-func (cpu *MultiCoreCpu) MustEvict(p *Process) {
+func (cpu *CpuPool) MustEvict(p *Process) {
   for _, res := range cpu.cpus {
     if res.state == BUSY && res.currentProc.id == p.id {
       res.MustEvict(p)

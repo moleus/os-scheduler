@@ -24,37 +24,27 @@ package main
 
 import(
     "fmt"
-    "bufio"
-    "os"
-    "strings"
-    "strconv"
 )
 
-
-type Scheduler interface {
-  Tick()
-  AssignToResource(r Resourcer, p *Process)
-  ReleaseResource(r Resourcer)
-}
-
-type RR struct {
-  timeQuantum int
+type GlobalTimer interface {
+  GetCurrentTick() int
 }
 
 type Machine struct {
-  s Scheduler
+  cpuScheduler Scheduler
+  io1Scheduler Scheduler
+  io2Scheduler Scheduler
 
-  Cpus *MultiCoreCpu
-  IO1 *Resource
-  IO2 *Resource
-
-  CpuQueue []Process
-  IO1Queue []Process
-  IO2Queue []Process
-
-  allProcesses []Process
-
+  unscheduledProcs []Process
   currentTick int
+}
+
+func NewMachine(cpuScheduler Scheduler, io1Scheduler Scheduler, io2Scheduler Scheduler) Machine {
+  return Machine{cpuScheduler, io1Scheduler, io2Scheduler, []Process{}, 0}
+}
+
+func (m *Machine) GetCurrentTick() int {
+  return m.currentTick
 }
 
 func (m *Machine) CheckQueueAndAssign(queue []Process, rs Resourcer) {
@@ -87,13 +77,6 @@ func (m *Machine) debugPringState() {
 	fmt.Println()
 }
 
-func (m *Machine) checkAndAssignStep() {
-  // Assign waiting processes to resources
-  m.CheckQueueAndAssign(m.CpuQueue, m.Cpus)
-  m.CheckQueueAndAssign(m.IO1Queue, m.IO1)
-  m.CheckQueueAndAssign(m.IO2Queue, m.IO2)
-}
-
 func (m *Machine) AfterTick() {
   // Check if any process is done
   for _, res := range m.Cpus.cpus {
@@ -115,23 +98,6 @@ func (m *Machine) AfterTick() {
 // TODO: remove Tick, replace with IncrementCounters for all and UpdateState for running process
 // TODO: add ready queue (cpu queue) and I/O queue (blocked state)
 // TODO: add Preemt mechanism to stop process and move it to queue
-
-func (m *Machine) Tick() {
-  m.checkAndAssignStep()
-  m.currentTick++
-  for _, proc := range m.allProcesses {
-    proc.Tick()
-  }
-
-  // debug print info for each cpu and io
-  m.debugPringState()
-
-  for _, proc := range m.allProcesses {
-    proc.AfterTick()
-  }
-
-  m.AfterTick()
-}
 
 func allDone(processes []Process) bool {
   for _, proc := range processes {
@@ -171,25 +137,46 @@ func scheduler(processes []Process) {
   }
 }
 
-func main() {
-  fmt.Println("FCFS Scheduler")
+func (m *Machine) checkForNewProcs() {
+  for i, p := range m.unscheduledProcs {
+    if m.currentTick < p.arrivalTime {
+      // skip this proc. It's not time yet
+      continue
+    }
+    m.cpuScheduler.PushToQueue(&p)
+    // remove this proc from array
+    m.unscheduledProcs = append(m.unscheduledProcs[:i], m.unscheduledProcs[i+1:]...)
+  }
+}
 
-  // Get input
-  reader := bufio.NewReader(os.Stdin)
-  fmt.Print("Enter number of processes: ")
-  numProcStr, _ := reader.ReadString('\n')
-  numProc, _ := strconv.Atoi(strings.TrimSpace(numProcStr))
+func (m *Machine) Tick() {
+  m.checkForNewProcs()
 
-  // Create processes
-  processes := make([]Process, numProc)
-  for i := 0; i < numProc; i++ {
-    processes[i].id = i
-    fmt.Printf("Enter arrival time for process %d: ", i)
-    arrivalTimeStr, _ := reader.ReadString('\n')
-    processes[i].arrivalTime, _ = strconv.Atoi(strings.TrimSpace(arrivalTimeStr))
+  m.cpuScheduler.BeforeTick()
+  m.io1Scheduler.BeforeTick()
+  m.io2Scheduler.BeforeTick()
+
+  m.currentTick++
+}
+
+func (m *Machine) Tick() {
+  m.currentTick++
+  for _, proc := range m.allProcesses {
+    proc.Tick()
   }
 
-  // Run scheduler
-  fmt.Println("Running scheduler")
-  scheduler(processes)
+  // debug print info for each cpu and io
+  m.debugPringState()
+
+  for _, proc := range m.allProcesses {
+    proc.AfterTick()
+  }
+
+  m.AfterTick()
+}
+
+
+func (m *Machine) Run(processes []Process) {
+  m.unscheduledProcs = processes
+
 }

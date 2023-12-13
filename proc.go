@@ -6,14 +6,15 @@ type ProcState int
 const (
   READY ProcState = iota  // ready to run on CPU
   RUNNING  // runs on CPU
-  BLOCKED  // waits or reads from IO
+  BLOCKED  // waits for IO
+  READS_IO // reads from IO
   TERMINATED  // completed
 )
 
 type Task struct {
   resouceType ResourceType
   passedTime int
-  time int
+  totalTime int
 }
 
 type Process struct {
@@ -29,11 +30,11 @@ type Process struct {
 }
 
 func (p *Process) EstimatedTaskTime() int {
-  return p.tasks[p.currentTaskIndex].time
+  return p.tasks[p.currentTaskIndex].totalTime
 }
 
 func (t *Task) IsFinished() bool {
-  return t.passedTime == t.time
+  return t.passedTime == t.totalTime
 }
 
 func (p *Process) CurTask() *Task {
@@ -44,16 +45,24 @@ func (p *Process) IsBlockedOrTerminated() bool {
   return p.state == BLOCKED || p.state == TERMINATED
 }
 
-type Tickable interface {
-  Tick()
+func (p *Process) AssignToCpu() {
+  p.state = RUNNING
+  p.waitingTime = 0
+  p.blockedTime = 0
+}
+
+func (p *Process) AssignToIo() {
+  p.state = READS_IO
+  p.waitingTime = 0
+  p.blockedTime = 0
 }
 
 func (p *Process) Tick() {
-  p.IncrementCounters()
-  p.UpdateState()
+  p.incrementCounters()
+  p.updateState()
 }
 
-func (p *Process) IncrementCounters() {
+func (p *Process) incrementCounters() {
   switch p.state {
   case TERMINATED:
     fmt.Println("Process %d is already terminated", p.id)
@@ -65,19 +74,32 @@ func (p *Process) IncrementCounters() {
     p.CurTask().passedTime++
   }
 
-  if p.CurTask().passedTime > p.CurTask().time {
+  if p.CurTask().passedTime > p.CurTask().totalTime {
     panic(fmt.Sprintf("Passed time is greater than total time for proc %d, Task %d", p.id, p.currentTaskIndex))
   }
 }
 
-func (p *Process) UpdateState() {
+func (p *Process) updateState() {
   if p.currentTaskIndex == len(p.tasks) {
     p.state = TERMINATED
     return
   }
   if p.CurTask().IsFinished() {
-    p.state = READY
-  } else {
-    p.state = RUNNING
+    p.completeTask()
   }
 }
+
+func (p *Process) completeTask() {
+  p.currentTaskIndex++
+  if p.currentTaskIndex > len(p.tasks) {
+    p.state = TERMINATED
+    return
+  }
+  switch p.CurTask().resouceType {
+  case CPU:
+    p.state = READY
+  case IO:
+    p.state = BLOCKED
+  }
+}
+

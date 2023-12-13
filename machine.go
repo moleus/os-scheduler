@@ -22,10 +22,6 @@ Task:
 */
 package main
 
-import(
-    "fmt"
-)
-
 type GlobalTimer interface {
   GetCurrentTick() int
 }
@@ -36,55 +32,23 @@ type Machine struct {
   io2Scheduler Scheduler
 
   unscheduledProcs []Process
+  clock *Clock
+}
+
+type Clock struct {
   currentTick int
 }
 
-func NewMachine(cpuScheduler Scheduler, io1Scheduler Scheduler, io2Scheduler Scheduler) Machine {
-  return Machine{cpuScheduler, io1Scheduler, io2Scheduler, []Process{}, 0}
+func NewMachine(cpuScheduler Scheduler, io1Scheduler Scheduler, io2Scheduler Scheduler, clock *Clock) Machine {
+  return Machine{cpuScheduler, io1Scheduler, io2Scheduler, []Process{}, clock}
+}
+
+func (c *Clock) GetCurrentTick() int {
+  return c.currentTick
 }
 
 func (m *Machine) GetCurrentTick() int {
-  return m.currentTick
-}
-
-func (m *Machine) CheckQueueAndAssign(queue []Process, rs Resourcer) {
-  for _, proc := range queue {
-    if proc.state != READY {
-      panic("Process in Resource queue is not ready")
-    }
-    resource, err := rs.GetFree()
-    if err != nil {
-      break
-    }
-    m.s.AssignToResource(resource, &proc)
-    queue = queue[1:]
-  }
-}
-
-func (m *Machine) debugPringState() {
-	for _, cpu := range m.Cpus.cpus {
-		s := 0
-		if cpu.state == BUSY {
-			s = 1
-		}
-		fmt.Printf("%d ", s)
-	}
-	fmt.Print("| ")
-
-  fmt.Printf("%d ", m.IO1.state == BUSY)
-  fmt.Printf("%d", m.IO2.state == BUSY)
-
-	fmt.Println()
-}
-
-func (m *Machine) AfterTick() {
-  // Check if any process is done
-  for _, res := range m.Cpus.cpus {
-    if res.state == BUSY && res.currentProc.CurTask().IsFinished() {
-      res.currentProc.state = TERMINATED
-      res.currentProc = nil
-    }
-  }
+  return m.clock.currentTick
 }
 
 /*
@@ -99,47 +63,37 @@ func (m *Machine) AfterTick() {
 // TODO: add ready queue (cpu queue) and I/O queue (blocked state)
 // TODO: add Preemt mechanism to stop process and move it to queue
 
-func allDone(processes []Process) bool {
-  for _, proc := range processes {
-    if proc.state != DONE {
-      return false
-    }
-  }
-  return true
+func (m *Machine) allDone() bool {
+  queuesAreEmpty := m.cpuScheduler.GetQueueLen() == 0 && m.io1Scheduler.GetQueueLen() == 0 && m.io2Scheduler.GetQueueLen() == 0
+  unscheduledProcsIsEmpty := len(m.unscheduledProcs) == 0
+  return queuesAreEmpty && unscheduledProcsIsEmpty
 }
 
-func scheduler(processes []Process) {
-  machine := Machine{make([]Process, 0), make([]Process, 0)}
+func (m *Machine) loop() {
   // infinite loop until all processes are done
-  // for every tick, check if any process is ready to run
-  cpuQ := machine.CpuQueue
-  ioQ := machine.IoQueue
 
   for {
-    // Check if all processes are done
-    if allDone(processes) {
+    if m.allDone() {
       break
     }
     // If have waiting process in queue, assign it to CPU
-    if len(cpuQ) > 0 {
-      // Get free CPU
-      cpu, err := machine.GetFreeCpu()
-      if err != nil {
-        fmt.Println(err)
-        continue
-      }
-      // Assign process to CPU
-      machine.AssignToResource(&cpu, &cpuQ[0])
-      // Remove process from queue
-      cpuQ = cpuQ[1:]
-    }
-
+    m.tick()
+      // cpu, err := machine.GetFreeCpu()
+      // if err != nil {
+      //   fmt.Println(err)
+      //   continue
+      // }
+      // // Assign process to CPU
+      // machine.AssignToResource(&cpu, &cpuQ[0])
+      // // Remove process from queue
+      // cpuQ = cpuQ[1:]
+    // }
   }
 }
 
 func (m *Machine) checkForNewProcs() {
   for i, p := range m.unscheduledProcs {
-    if m.currentTick < p.arrivalTime {
+    if m.clock.currentTick < p.arrivalTime {
       // skip this proc. It's not time yet
       continue
     }
@@ -149,32 +103,19 @@ func (m *Machine) checkForNewProcs() {
   }
 }
 
-func (m *Machine) Tick() {
+func (m *Machine) tick() {
   m.checkForNewProcs()
 
-  m.cpuScheduler.BeforeTick()
-  m.io1Scheduler.BeforeTick()
-  m.io2Scheduler.BeforeTick()
+  m.cpuScheduler.CheckRunningProcs()
+  m.io1Scheduler.CheckRunningProcs()
+  m.io2Scheduler.CheckRunningProcs()
 
-  m.currentTick++
+  m.cpuScheduler.ProcessQueue()
+  m.io1Scheduler.ProcessQueue()
+  m.io2Scheduler.ProcessQueue()
+
+  m.clock.currentTick++
 }
-
-func (m *Machine) Tick() {
-  m.currentTick++
-  for _, proc := range m.allProcesses {
-    proc.Tick()
-  }
-
-  // debug print info for each cpu and io
-  m.debugPringState()
-
-  for _, proc := range m.allProcesses {
-    proc.AfterTick()
-  }
-
-  m.AfterTick()
-}
-
 
 func (m *Machine) Run(processes []Process) {
   m.unscheduledProcs = processes

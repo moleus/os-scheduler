@@ -24,12 +24,13 @@ type Resourcer interface {
 type Resource struct {
   name string
   state ResourceState
+  resourceType ResourceType
   currentProc *Process
   ProcRunningTime int
 }
 
-func NewResource(name string) Resource {
-  return Resource{name, FREE, nil, 0}
+func NewResource(name string, rType ResourceType) *Resource {
+  return &Resource{name, FREE, rType, nil, 0}
 }
 
 type CpuPool struct {
@@ -39,7 +40,7 @@ type CpuPool struct {
 func NewCpuPool(n int) *CpuPool {
   cpus := []Resource{}
   for i := 0; i < n; i++ {
-    cpus = append(cpus, NewResource(fmt.Sprintf("CPU%d", i+1)))
+    cpus = append(cpus, *NewResource(fmt.Sprintf("CPU%d", i+1), CPU))
   }
   return &CpuPool{cpus}
 }
@@ -57,6 +58,12 @@ func (resource *Resource) AssignToFree(p *Process) error {
   }
   resource.state = BUSY
   resource.currentProc = p
+  switch resource.resourceType {
+  case CPU:
+    p.AssignToCpu()
+  case IO:
+    p.AssignToIo()
+  }
   return nil
 }
 

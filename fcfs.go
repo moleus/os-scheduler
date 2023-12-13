@@ -11,10 +11,11 @@ const (
 )
 
 type Scheduler interface {
-  BeforeTick()
-  AfterTick()
+  CheckRunningProcs()
+  ProcessQueue()
   Assign(p *Process)
   PushToQueue(p *Process)
+  GetQueueLen() int
 }
 
 type SelectionFunction interface {
@@ -35,6 +36,8 @@ type FCFS struct {
   decisionMode DecisionMode
   selectionFunc SelectionFunction
   clock GlobalTimer
+
+  evictedProcs []Process
 }
 
 func NewFCFS(name string, r Resourcer, clock GlobalTimer) *FCFS {
@@ -51,11 +54,16 @@ func (f *FCFS) evictTerminatedProcs() {
   for _, p := range procs {
     if p.IsBlockedOrTerminated() {
       r.MustEvict(&p)
+      f.evictedProcs = append(f.evictedProcs, p)
     }
   }
 }
 
-func (f *FCFS) Tick() {
+func (f *FCFS) GetQueueLen() int {
+  return len(f.queue.elements)
+}
+
+func (f *FCFS) assignFromQueue() {
   f.evictTerminatedProcs()
 
   freeRes, err := f.resource.GetFree();
@@ -71,8 +79,15 @@ func (f *FCFS) Tick() {
   }
 
   freeRes.AssignToFree(nextProc)
+  // TODO: update proc state
+}
 
-  // iterate over
+func (f *FCFS) CheckRunningProcs() {
+  f.evictTerminatedProcs()
+}
+
+func (f *FCFS) ProcessQueue() {
+  f.assignFromQueue()
 }
 
 func (f *FCFS) PushToQueue(p *Process) {

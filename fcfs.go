@@ -65,8 +65,6 @@ func (f *FCFS) GetQueueLen() int {
 }
 
 func (f *FCFS) assignFromQueue() {
-  f.evictTerminatedProcs()
-
   freeRes, err := f.resource.GetFree();
   if (err != nil) {
     fmt.Println("Resource is busy. Skipping scheduling")
@@ -79,8 +77,12 @@ func (f *FCFS) assignFromQueue() {
     return
   }
 
-  freeRes.AssignToFree(nextProc)
-  // TODO: update proc state
+  err = freeRes.AssignToFree(nextProc)
+  if (err != nil) {
+    fmt.Println("Resource is busy. Skipping scheduling")
+    return
+  }
+  fmt.Printf("Assigned process %d to resource %s\n", nextProc.id, f.name)
 }
 
 func (f *FCFS) CheckRunningProcs() {

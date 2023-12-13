@@ -12,6 +12,7 @@ import (
 
 var (
 	cpuCount = flag.Int("cpus", 4, "Number of CPUs")
+  inputFile = flag.String("input", "", "Input file")
 )
 
 // input format, each process starts from new line. Tasks separated by semi-colon
@@ -59,11 +60,11 @@ func ParseProcess(id int, line string) Process {
 // reads all lines until EOF
 func ParseProcesses(r io.Reader) []Process {
   scanner := bufio.NewScanner(r)
-	var processes []Process
+	var processes = []Process{}
   var i int
   for scanner.Scan() {
-    i++
 		process := ParseProcess(i, scanner.Text())
+    i++
 		processes = append(processes, process)
   }
 	return processes
@@ -72,8 +73,20 @@ func ParseProcesses(r io.Reader) []Process {
 func main() {
 	flag.Parse()
 	fmt.Println("FCFS Scheduler")
+  var input io.Reader;
 
-	processes := ParseProcesses(os.Stdin)
+  if *inputFile != "" {
+    f, err := os.Open(*inputFile)
+    if err != nil {
+      panic(err)
+    }
+    defer f.Close()
+    input = f
+  } else {
+    input = os.Stdin
+  }
+
+	processes := ParseProcesses(input)
 
 	clock := &Clock{0}
 	io1Scheduler := NewFCFS("IO1", NewResource("IO1", IO1), clock)

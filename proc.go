@@ -56,13 +56,10 @@ func (p *Process) AssignToCpu() {
 }
 
 func (p *Process) AssignToIo() {
+  fmt.Printf("Process %d assigned to IO\n", p.id)
   p.state = READS_IO
   p.waitingTime = 0
   p.blockedTime = 0
-}
-
-func (p* Process) TakeFromCpu() {
-
 }
 
 func (p *Process) Tick() {
@@ -71,6 +68,7 @@ func (p *Process) Tick() {
 }
 
 func (p *Process) incrementCounters() {
+  fmt.Printf("Process %d ticked\n", p.id)
   switch p.state {
   case TERMINATED:
     fmt.Printf("Process %d is already terminated\n", p.id)
@@ -89,10 +87,12 @@ func (p *Process) incrementCounters() {
 
 func (p *Process) updateState() {
   if p.currentTaskIndex == len(p.tasks) {
+    fmt.Printf("Process %d finished all tasks\n", p.id)
     p.state = TERMINATED
     return
   }
   if p.CurTask().IsFinished() {
+    fmt.Printf("Process %d finished task %d\n", p.id, p.currentTaskIndex)
     p.completeTask()
   }
 }

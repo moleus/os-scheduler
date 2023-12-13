@@ -34,6 +34,7 @@ type Machine struct {
   io2Scheduler Scheduler
 
   unscheduledProcs []Process
+  allProcs []Process
   clock *Clock
 }
 
@@ -42,7 +43,7 @@ type Clock struct {
 }
 
 func NewMachine(cpuScheduler Scheduler, io1Scheduler Scheduler, io2Scheduler Scheduler, clock *Clock) Machine {
-  return Machine{cpuScheduler, io1Scheduler, io2Scheduler, []Process{}, clock}
+  return Machine{cpuScheduler, io1Scheduler, io2Scheduler, []Process{}, []Process{}, clock}
 }
 
 func (c *Clock) GetCurrentTick() int {
@@ -66,9 +67,12 @@ func (m *Machine) GetCurrentTick() int {
 // TODO: add Preemt mechanism to stop process and move it to queue
 
 func (m *Machine) allDone() bool {
-  queuesAreEmpty := m.cpuScheduler.GetQueueLen() == 0 && m.io1Scheduler.GetQueueLen() == 0 && m.io2Scheduler.GetQueueLen() == 0
-  unscheduledProcsIsEmpty := len(m.unscheduledProcs) == 0
-  return queuesAreEmpty && unscheduledProcsIsEmpty
+  for _, p := range m.allProcs {
+    if p.state != TERMINATED {
+      return false
+    }
+  }
+  return true
 }
 
 func (m *Machine) loop() {
@@ -107,6 +111,10 @@ func (m *Machine) tick() {
   m.io2Scheduler.ProcessQueue()
 
   m.clock.currentTick++
+
+  for _, p := range m.allProcs {
+    p.Tick()
+  }
 }
 
 func (m *Machine) checkForNewProcs() {
@@ -115,7 +123,7 @@ func (m *Machine) checkForNewProcs() {
       // skip this proc. It's not time yet
       continue
     }
-    fmt.Printf("Process %d arrived at %d\n", p.id, m.GetCurrentTick())
+    fmt.Printf("Process %d arrived at tick %d\n", p.id, m.GetCurrentTick())
     m.cpuScheduler.PushToQueue(&p)
     // remove this proc from array
     m.unscheduledProcs = append(m.unscheduledProcs[:i], m.unscheduledProcs[i+1:]...)
@@ -146,14 +154,17 @@ func (m *Machine) handleEvictedProc(p *Process) {
 func (m *Machine) pushToIO(p *Process) {
   switch p.NextTask().ResouceType {
   case IO1:
+    fmt.Printf("Process %d is blocked on IO1\n", p.id)
     m.io1Scheduler.PushToQueue(p)
   case IO2:
+    fmt.Printf("Process %d is blocked on IO2\n", p.id)
     m.io2Scheduler.PushToQueue(p)
   }
 }
 
 func (m *Machine) Run(processes []Process) {
-  m.unscheduledProcs = processes
+  m.allProcs = processes
+  m.unscheduledProcs = m.allProcs
 
   m.loop()
 }

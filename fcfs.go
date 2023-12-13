@@ -69,7 +69,7 @@ func (f *FCFS) assignFromQueue() {
 
   freeRes, err := f.resource.GetFree();
   if (err != nil) {
-    fmt.Println("Resource is bussy. Skipping scheduling")
+    fmt.Println("Resource is busy. Skipping scheduling")
     return
   }
 

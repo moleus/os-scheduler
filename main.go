@@ -25,7 +25,7 @@ func calcArrivalTime(procId int) int {
 func ParseTask(task string) Task {
 	task = strings.TrimSpace(task)
 	var taskType ResourceType
-	taskTypeStr := task[:2]
+	taskTypeStr := task[:3]
 	switch taskTypeStr {
 	case "IO1":
 		taskType = IO1
@@ -34,41 +34,38 @@ func ParseTask(task string) Task {
 	case "CPU":
 		taskType = CPU
 	}
-	taskTime, err := strconv.Atoi(task[3 : len(task)-1])
+	taskTime, err := strconv.Atoi(task[4 : len(task)-1])
 	if err != nil {
 		panic(err)
 	}
 
-	return Task{ResouceType: ResourceType(taskType), totalTime: taskTime}
+	return Task{ResouceType: taskType, totalTime: taskTime}
 }
 
-func ParseProcess(id int, r io.Reader) (Process, error) {
-	reader := bufio.NewReader(r)
-	line, err := reader.ReadString('\n')
-	if err != nil {
-		return Process{}, err
-	}
+func ParseProcess(id int, line string) Process {
 	line = strings.TrimSpace(line)
 	tasks := strings.Split(line, ";")
+  if tasks[len(tasks)-1] == "" {
+    tasks = tasks[:len(tasks)-1]
+  }
+  fmt.Printf("Tasks: %v\n", tasks)
 	process := Process{id: id, arrivalTime: calcArrivalTime(id), state: READY, currentTaskIndex: 0, tasks: make([]Task, len(tasks))}
 	for i, task := range tasks {
 		process.tasks[i] = ParseTask(task)
 	}
-	return process, nil
+	return process
 }
 
 // reads all lines until EOF
 func ParseProcesses(r io.Reader) []Process {
+  scanner := bufio.NewScanner(r)
 	var processes []Process
-	for i := 0; ; i++ {
-		process, err := ParseProcess(i, r)
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			panic(err)
-		}
+  var i int
+  for scanner.Scan() {
+    i++
+		process := ParseProcess(i, scanner.Text())
 		processes = append(processes, process)
-	}
+  }
 	return processes
 }
 
@@ -77,8 +74,6 @@ func main() {
 	fmt.Println("FCFS Scheduler")
 
 	processes := ParseProcesses(os.Stdin)
-	fmt.Println("Parsed processes: ", processes)
-	return
 
 	clock := &Clock{0}
 	io1Scheduler := NewFCFS("IO1", NewResource("IO1", IO1), clock)

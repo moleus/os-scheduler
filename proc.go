@@ -68,7 +68,7 @@ func (p *Process) Tick() {
 }
 
 func (p *Process) incrementCounters() {
-  fmt.Printf("Process %d ticked\n", p.id)
+  fmt.Printf("Process %d ticked. State: %v\n", p.id, p.state)
   switch p.state {
   case TERMINATED:
     fmt.Printf("Process %d is already terminated\n", p.id)

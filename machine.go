@@ -33,8 +33,8 @@ type Machine struct {
   io1Scheduler Scheduler
   io2Scheduler Scheduler
 
-  unscheduledProcs []Process
-  allProcs []Process
+  unscheduledProcs []*Process
+  allProcs []*Process
   clock *Clock
 }
 
@@ -43,7 +43,7 @@ type Clock struct {
 }
 
 func NewMachine(cpuScheduler Scheduler, io1Scheduler Scheduler, io2Scheduler Scheduler, clock *Clock) Machine {
-  return Machine{cpuScheduler, io1Scheduler, io2Scheduler, []Process{}, []Process{}, clock}
+  return Machine{cpuScheduler, io1Scheduler, io2Scheduler, []*Process{}, []*Process{}, clock}
 }
 
 func (c *Clock) GetCurrentTick() int {
@@ -124,7 +124,7 @@ func (m *Machine) checkForNewProcs() {
       continue
     }
     fmt.Printf("Process %d arrived at tick %d\n", p.id, m.GetCurrentTick())
-    m.cpuScheduler.PushToQueue(&p)
+    m.cpuScheduler.PushToQueue(p)
     // remove this proc from array
     m.unscheduledProcs = append(m.unscheduledProcs[:i], m.unscheduledProcs[i+1:]...)
   }
@@ -162,7 +162,7 @@ func (m *Machine) pushToIO(p *Process) {
   }
 }
 
-func (m *Machine) Run(processes []Process) {
+func (m *Machine) Run(processes []*Process) {
   m.allProcs = processes
   m.unscheduledProcs = m.allProcs
 

@@ -58,14 +58,14 @@ func ParseProcess(id int, line string) Process {
 }
 
 // reads all lines until EOF
-func ParseProcesses(r io.Reader) []Process {
+func ParseProcesses(r io.Reader) []*Process {
   scanner := bufio.NewScanner(r)
-	var processes = []Process{}
+	var processes = []*Process{}
   var i int
   for scanner.Scan() {
 		process := ParseProcess(i, scanner.Text())
     i++
-		processes = append(processes, process)
+		processes = append(processes, &process)
   }
 	return processes
 }

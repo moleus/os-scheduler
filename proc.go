@@ -12,7 +12,7 @@ const (
 )
 
 type Task struct {
-  resouceType ResourceType
+  ResouceType ResourceType
   passedTime int
   totalTime int
 }
@@ -41,6 +41,10 @@ func (p *Process) CurTask() *Task {
   return &p.tasks[p.currentTaskIndex]
 }
 
+func (p *Process) NextTask() *Task {
+  return &p.tasks[p.currentTaskIndex+1]
+}
+
 func (p *Process) IsBlockedOrTerminated() bool {
   return p.state == BLOCKED || p.state == TERMINATED
 }
@@ -57,6 +61,10 @@ func (p *Process) AssignToIo() {
   p.blockedTime = 0
 }
 
+func (p* Process) TakeFromCpu() {
+
+}
+
 func (p *Process) Tick() {
   p.incrementCounters()
   p.updateState()
@@ -65,7 +73,7 @@ func (p *Process) Tick() {
 func (p *Process) incrementCounters() {
   switch p.state {
   case TERMINATED:
-    fmt.Println("Process %d is already terminated", p.id)
+    fmt.Printf("Process %d is already terminated\n", p.id)
   case READY:
     p.waitingTime++
   case BLOCKED:
@@ -98,7 +106,7 @@ func (p *Process) completeTask() {
   switch p.CurTask().resouceType {
   case CPU:
     p.state = READY
-  case IO:
+  case IO1 | IO2:
     p.state = BLOCKED
   }
 }

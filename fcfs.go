@@ -16,6 +16,7 @@ type Scheduler interface {
   Assign(p *Process)
   PushToQueue(p *Process)
   GetQueueLen() int
+  GetEvictedProcs() []Process
 }
 
 type SelectionFunction interface {
@@ -74,7 +75,7 @@ func (f *FCFS) assignFromQueue() {
 
   nextProc, err := f.selectionFunc.Select(f.queue)
   if (err != nil) {
-    fmt.Println("No elements in queue %s", f.queue.name)
+    fmt.Printf("No elements in queue %s\n", f.queue.name)
     return
   }
 
@@ -92,4 +93,8 @@ func (f *FCFS) ProcessQueue() {
 
 func (f *FCFS) PushToQueue(p *Process) {
   f.queue.Push(p)
+}
+
+func (f *FCFS) GetEvictedProcs() []Process {
+  return f.evictedProcs
 }

@@ -11,7 +11,8 @@ const (
 type ResourceType int
 const (
   CPU ResourceType = iota
-  IO
+  IO1
+  IO2
 )
 
 type Resourcer interface {
@@ -61,7 +62,7 @@ func (resource *Resource) AssignToFree(p *Process) error {
   switch resource.resourceType {
   case CPU:
     p.AssignToCpu()
-  case IO:
+  case IO1 | IO2:
     p.AssignToIo()
   }
   return nil

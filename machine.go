@@ -9,7 +9,6 @@ Example input for proc1 and proc2 (CPU(x) means x time units of CPU time, IO(y) 
 CPU(5) IO(2) CPU(1) IO(20) CPU(8)
 CPU(4) IO(10) CPU(2)
 
-
 Task:
 1. measure time to complete all processes
 
@@ -18,9 +17,12 @@ Task:
 - Мы не знаем, что будет дальше
 - Процесс сам считает кол-во выполненных шагов
 - Каждый квант времеи Планировщик смотрит только на наличие свободного места на CPU и IO и на очередь
-
 */
 package main
+
+import (
+	"fmt"
+)
 
 type GlobalTimer interface {
   GetCurrentTick() int
@@ -91,24 +93,14 @@ func (m *Machine) loop() {
   }
 }
 
-func (m *Machine) checkForNewProcs() {
-  for i, p := range m.unscheduledProcs {
-    if m.clock.currentTick < p.arrivalTime {
-      // skip this proc. It's not time yet
-      continue
-    }
-    m.cpuScheduler.PushToQueue(&p)
-    // remove this proc from array
-    m.unscheduledProcs = append(m.unscheduledProcs[:i], m.unscheduledProcs[i+1:]...)
-  }
-}
-
 func (m *Machine) tick() {
   m.checkForNewProcs()
 
   m.cpuScheduler.CheckRunningProcs()
   m.io1Scheduler.CheckRunningProcs()
   m.io2Scheduler.CheckRunningProcs()
+
+  m.handleAllEvictedProcs()
 
   m.cpuScheduler.ProcessQueue()
   m.io1Scheduler.ProcessQueue()
@@ -117,7 +109,51 @@ func (m *Machine) tick() {
   m.clock.currentTick++
 }
 
+func (m *Machine) checkForNewProcs() {
+  for i, p := range m.unscheduledProcs {
+    if m.clock.currentTick < p.arrivalTime {
+      // skip this proc. It's not time yet
+      continue
+    }
+    fmt.Printf("Process %d arrived at %d\n", p.id, m.GetCurrentTick())
+    m.cpuScheduler.PushToQueue(&p)
+    // remove this proc from array
+    m.unscheduledProcs = append(m.unscheduledProcs[:i], m.unscheduledProcs[i+1:]...)
+  }
+}
+
+func (m *Machine) handleAllEvictedProcs() {
+  ep := m.cpuScheduler.GetEvictedProcs()
+  for _, p := range ep {
+    m.handleEvictedProc(&p)
+  }
+}
+
+func (m *Machine) handleEvictedProc(p *Process) {
+  switch p.state {
+  case TERMINATED:
+    fmt.Printf("Process %d is done\n", p.id)
+  case RUNNING | READY:
+    // not finished or came from IO
+    m.cpuScheduler.PushToQueue(p)
+  case BLOCKED:
+    m.pushToIO(p)
+  case READS_IO:
+    panic(fmt.Sprintf("Process %d evicted in READS_IO state but IO scheduler is nonpreemptive\n", p.id))
+  }
+}
+
+func (m *Machine) pushToIO(p *Process) {
+  switch p.NextTask().ResouceType {
+  case IO1:
+    m.io1Scheduler.PushToQueue(p)
+  case IO2:
+    m.io2Scheduler.PushToQueue(p)
+  }
+}
+
 func (m *Machine) Run(processes []Process) {
   m.unscheduledProcs = processes
 
+  m.loop()
 }

@@ -44,14 +44,15 @@ func ParseTask(task string) Task {
 	return Task{ResouceType: taskType, totalTime: taskTime}
 }
 
-func ParseProcess(id int, line string) Process {
+func ParseProcess(id int, line string, logger *slog.Logger) *Process {
 	line = strings.TrimSpace(line)
 	tasks := strings.Split(line, ";")
   if tasks[len(tasks)-1] == "" {
     tasks = tasks[:len(tasks)-1]
   }
   slog.Debug(fmt.Sprintf("Tasks: %v\n", tasks))
-	process := Process{id: id, arrivalTime: calcArrivalTime(id), state: READY, currentTaskIndex: 0, tasks: make([]Task, len(tasks))}
+	process := NewProcess(id, calcArrivalTime(id), make([]Task, len(tasks)), logger)
+
 	for i, task := range tasks {
 		process.tasks[i] = ParseTask(task)
 	}
@@ -59,21 +60,20 @@ func ParseProcess(id int, line string) Process {
 }
 
 // reads all lines until EOF
-func ParseProcesses(r io.Reader) []*Process {
+func ParseProcesses(r io.Reader, logger *slog.Logger) []*Process {
   scanner := bufio.NewScanner(r)
 	var processes = []*Process{}
   var i int
   for scanner.Scan() {
-		process := ParseProcess(i, scanner.Text())
+		process := ParseProcess(i, scanner.Text(), logger)
     i++
-		processes = append(processes, &process)
+		processes = append(processes, process)
   }
 	return processes
 }
 
 func main() {
 	flag.Parse()
-  slog.Info("Starting simulation")
   var input io.Reader;
 
   if *inputFile != "" {
@@ -87,14 +87,17 @@ func main() {
     input = os.Stdin
   }
 
-	processes := ParseProcesses(input)
-
 	clock := &Clock{0}
-	io1Scheduler := NewFCFS("IO1", NewResource("IO1", IO1), clock)
-	io2Scheduler := NewFCFS("IO2", NewResource("IO2", IO2), clock)
-	cpuScheduler := NewFCFS("CPUs", NewCpuPool(*cpuCount), clock)
+
+  defaultHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})
+  logger := slog.New(NewTickLoggerHandler(defaultHandler, clock))
+	processes := ParseProcesses(input, logger)
+
+	io1Scheduler := NewFCFS("IO1", NewResource("IO1", IO1), clock, logger)
+	io2Scheduler := NewFCFS("IO2", NewResource("IO2", IO2), clock, logger)
+	cpuScheduler := NewFCFS("CPUs", NewCpuPool(*cpuCount), clock, logger)
 	// Run scheduler
-	machine := NewMachine(cpuScheduler, io1Scheduler, io2Scheduler, clock)
+	machine := NewMachine(cpuScheduler, io1Scheduler, io2Scheduler, clock, logger)
 
 	machine.Run(processes)
 }

@@ -42,10 +42,11 @@ type FCFS struct {
   clock GlobalTimer
 
   evictedProcs []*Process
+  logger *slog.Logger
 }
 
-func NewFCFS(name string, r Resourcer, clock GlobalTimer) *FCFS {
-  return &FCFS{name: name, resource: r, queue: NewProcQueue(name, clock), decisionMode: NonPreemptive, selectionFunc: &SelectionFIFO{}, clock: clock}
+func NewFCFS(name string, r Resourcer, clock GlobalTimer, logger *slog.Logger) *FCFS {
+  return &FCFS{name: name, resource: r, queue: NewProcQueue(name, clock), decisionMode: NonPreemptive, selectionFunc: &SelectionFIFO{}, clock: clock, logger: logger}
 }
 
 func (f *FCFS) Assign(p *Process) {
@@ -57,7 +58,7 @@ func (f *FCFS) evictTerminatedProcs() {
   procs := r.GetProcs()
   for _, p := range procs {
     if p.IsTaskCompleted() {
-      slog.Info(fmt.Sprintf("Evicting proc %d from resource %s\n", p.id, f.name))
+      f.logger.Info(fmt.Sprintf("Evicting proc %d from resource %s\n", p.id, f.name))
       r.MustEvict(p)
       f.evictedProcs = append(f.evictedProcs, p)
     }
@@ -71,22 +72,22 @@ func (f *FCFS) GetQueueLen() int {
 func (f *FCFS) assignFromQueue() {
   freeRes, err := f.resource.GetFree();
   if (err != nil) {
-    slog.Debug(fmt.Sprintf("Resource %s is busy. Skipping scheduling\n", f.name))
+    f.logger.Debug(fmt.Sprintf("Resource %s is busy. Skipping scheduling\n", f.name))
     return
   }
 
   nextProc, err := f.selectionFunc.Select(f.queue)
   if (err != nil) {
-    slog.Debug(fmt.Sprintf("No elements in queue %s\n", f.queue.name))
+    f.logger.Debug(fmt.Sprintf("No elements in queue %s\n", f.queue.name))
     return
   }
 
   err = freeRes.AssignToFree(nextProc)
   if (err != nil) {
-    slog.Debug(fmt.Sprintf("Resource %s is busy. Skipping scheduling\n", f.name))
+    f.logger.Debug(fmt.Sprintf("Resource %s is busy. Skipping scheduling\n", f.name))
     return
   }
-  slog.Info(fmt.Sprintf("Assigning process %d to resource %s\n", nextProc.id, f.name))
+  f.logger.Info(fmt.Sprintf("Assigning process %d to resource %s\n", nextProc.id, f.name))
 }
 
 func (f *FCFS) CheckRunningProcs() {

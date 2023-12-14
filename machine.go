@@ -37,14 +37,15 @@ type Machine struct {
   unscheduledProcs []*Process
   runningProcs []*Process
   clock *Clock
+  logger *slog.Logger
 }
 
 type Clock struct {
   currentTick int
 }
 
-func NewMachine(cpuScheduler Scheduler, io1Scheduler Scheduler, io2Scheduler Scheduler, clock *Clock) Machine {
-  return Machine{cpuScheduler, io1Scheduler, io2Scheduler, []*Process{}, []*Process{}, clock}
+func NewMachine(cpuScheduler Scheduler, io1Scheduler Scheduler, io2Scheduler Scheduler, clock *Clock, logger *slog.Logger) Machine {
+  return Machine{cpuScheduler, io1Scheduler, io2Scheduler, []*Process{}, []*Process{}, clock, logger}
 }
 
 func (c *Clock) GetCurrentTick() int {
@@ -106,7 +107,7 @@ func (m *Machine) checkForNewProcs() {
       // skip this proc. It's not time yet
       continue
     }
-    slog.Info(fmt.Sprintf("Process %d arrived at tick %d\n", p.id, m.GetCurrentTick()))
+    m.logger.Info(fmt.Sprintf("Process %d arrived at tick %d\n", p.id, m.GetCurrentTick()))
     m.cpuScheduler.PushToQueue(p)
     // remove this proc from array
     m.unscheduledProcs = append(m.unscheduledProcs[:i], m.unscheduledProcs[i+1:]...)
@@ -129,7 +130,7 @@ func (m *Machine) handleAllEvictedProcs() {
 func (m *Machine) handleEvictedProc(p *Process) {
   switch p.state {
   case TERMINATED:
-    slog.Info(fmt.Sprintf("Process %d is done at tick %d\n", p.id, m.GetCurrentTick()))
+    m.logger.Info(fmt.Sprintf("Process %d is done at tick %d\n", p.id, m.GetCurrentTick()))
     // remove from running procs
     m.runningProcs = append(m.runningProcs[:p.id], m.runningProcs[p.id+1:]...)
   case RUNNING, READY:
@@ -146,10 +147,10 @@ func (m *Machine) handleEvictedProc(p *Process) {
 func (m *Machine) pushToIO(p *Process) {
   switch p.CurTask().ResouceType {
   case IO1:
-    slog.Debug(fmt.Sprintf("Process %d is blocked on IO1\n", p.id))
+    m.logger.Debug(fmt.Sprintf("Process %d is blocked on IO1\n", p.id))
     m.io1Scheduler.PushToQueue(p)
   case IO2:
-    slog.Debug(fmt.Sprintf("Process %d is blocked on IO2\n", p.id))
+    m.logger.Debug(fmt.Sprintf("Process %d is blocked on IO2\n", p.id))
     m.io2Scheduler.PushToQueue(p)
   case CPU:
     panic(fmt.Sprintf("Proc %d is blocked by current task is cpu", p.id))

@@ -30,6 +30,12 @@ type Process struct {
 
   waitingTime int
   blockedTime int
+
+  logger *slog.Logger
+}
+
+func NewProcess(id int, arrivalTime int, tasks []Task, logger *slog.Logger) *Process {
+  return &Process{id, arrivalTime, READY, 0, tasks, 0, 0, logger}
 }
 
 func (p *Process) EstimatedTaskTime() int {
@@ -59,7 +65,7 @@ func (p *Process) AssignToCpu() {
 }
 
 func (p *Process) AssignToIo() {
-  slog.Info(fmt.Sprintf("Process %d assigned to IO\n", p.id))
+  p.logger.Info(fmt.Sprintf("Process %d assigned to IO\n", p.id))
   p.state = READS_IO
   p.waitingTime = 0
   p.blockedTime = 0
@@ -71,10 +77,10 @@ func (p *Process) Tick() {
 }
 
 func (p *Process) incrementCounters() {
-  slog.Debug(fmt.Sprintf("Process %d ticked. State: %v\n", p.id, p.state))
+  p.logger.Debug(fmt.Sprintf("Process %d ticked. State: %v\n", p.id, p.state))
   switch p.state {
   case TERMINATED:
-    slog.Warn(fmt.Sprintf("Process %d is already terminated\n", p.id))
+    p.logger.Warn(fmt.Sprintf("Process %d is already terminated\n", p.id))
   case READY:
     p.waitingTime++
   case BLOCKED:
@@ -90,12 +96,12 @@ func (p *Process) incrementCounters() {
 
 func (p *Process) updateState() {
   if p.currentTaskIndex == len(p.tasks) {
-    slog.Info(fmt.Sprintf("Process %d finished all tasks\n", p.id))
+    p.logger.Info(fmt.Sprintf("Process %d finished all tasks\n", p.id))
     p.state = TERMINATED
     return
   }
   if p.CurTask().IsFinished() {
-    slog.Debug(fmt.Sprintf("Process %d finished task %d\n", p.id, p.currentTaskIndex))
+    p.logger.Debug(fmt.Sprintf("Process %d finished task %d\n", p.id, p.currentTaskIndex))
     p.completeTask()
   }
 }
@@ -109,10 +115,10 @@ func (p *Process) completeTask() {
   switch p.CurTask().ResouceType {
   case CPU:
     p.state = READY
-    slog.Debug(fmt.Sprintf("Process %d ready\n", p.id))
+    p.logger.Debug(fmt.Sprintf("Process %d ready\n", p.id))
   case IO1, IO2:
     p.state = BLOCKED
-    slog.Debug(fmt.Sprintf("Process %d blocked\n", p.id))
+    p.logger.Debug(fmt.Sprintf("Process %d blocked\n", p.id))
   }
 }
 

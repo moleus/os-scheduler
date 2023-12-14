@@ -19,7 +19,7 @@ type Resourcer interface {
   GetFree() (*Resource, error)
   AssignToFree(p *Process) error
   MustEvict(p *Process)
-  GetProcs() []Process
+  GetProcs() []*Process
 }
 
 type Resource struct {
@@ -62,7 +62,8 @@ func (resource *Resource) AssignToFree(p *Process) error {
   switch resource.resourceType {
   case CPU:
     p.AssignToCpu()
-  case IO1 | IO2:
+  case IO1, IO2:
+    // TODO: FIX not assigned to IO. Keeps BLOCKED state
     p.AssignToIo()
   }
   return nil
@@ -74,11 +75,11 @@ func (r *Resource) Tick() {
   }
 }
 
-func (r *Resource) GetProcs() []Process {
+func (r *Resource) GetProcs() []*Process {
   if r.state == BUSY {
-    return []Process{*r.currentProc}
+    return []*Process{r.currentProc}
   }
-  return []Process{}
+  return []*Process{}
 }
 
 func (r *Resource) MustEvict(p *Process) {
@@ -116,8 +117,8 @@ func (cpu *CpuPool) Tick() {
   }
 }
 
-func (cpu *CpuPool) GetProcs() []Process {
-  procs := []Process{}
+func (cpu *CpuPool) GetProcs() []*Process {
+  procs := []*Process{}
   for _, res := range cpu.cpus {
     procs = append(procs, res.GetProcs()...)
   }

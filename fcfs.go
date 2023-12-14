@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+
+  "log/slog"
 )
 
 type DecisionMode int
@@ -17,6 +19,7 @@ type Scheduler interface {
   PushToQueue(p *Process)
   GetQueueLen() int
   GetEvictedProcs() []*Process
+  ClearEvictedProcs()
 }
 
 type SelectionFunction interface {
@@ -53,9 +56,10 @@ func (f *FCFS) evictTerminatedProcs() {
   r := f.resource
   procs := r.GetProcs()
   for _, p := range procs {
-    if p.IsBlockedOrTerminated() {
-      r.MustEvict(&p)
-      f.evictedProcs = append(f.evictedProcs, &p)
+    if p.IsTaskCompleted() {
+      slog.Info(fmt.Sprintf("Evicting proc %d from resource %s\n", p.id, f.name))
+      r.MustEvict(p)
+      f.evictedProcs = append(f.evictedProcs, p)
     }
   }
 }
@@ -67,22 +71,22 @@ func (f *FCFS) GetQueueLen() int {
 func (f *FCFS) assignFromQueue() {
   freeRes, err := f.resource.GetFree();
   if (err != nil) {
-    fmt.Println("Resource is busy. Skipping scheduling")
+    slog.Debug(fmt.Sprintf("Resource %s is busy. Skipping scheduling\n", f.name))
     return
   }
 
   nextProc, err := f.selectionFunc.Select(f.queue)
   if (err != nil) {
-    fmt.Printf("No elements in queue %s\n", f.queue.name)
+    slog.Debug(fmt.Sprintf("No elements in queue %s\n", f.queue.name))
     return
   }
 
   err = freeRes.AssignToFree(nextProc)
   if (err != nil) {
-    fmt.Println("Resource is busy. Skipping scheduling")
+    slog.Debug(fmt.Sprintf("Resource %s is busy. Skipping scheduling\n", f.name))
     return
   }
-  fmt.Printf("Assigned process %d to resource %s\n", nextProc.id, f.name)
+  slog.Info(fmt.Sprintf("Assigning process %d to resource %s\n", nextProc.id, f.name))
 }
 
 func (f *FCFS) CheckRunningProcs() {
@@ -99,4 +103,8 @@ func (f *FCFS) PushToQueue(p *Process) {
 
 func (f *FCFS) GetEvictedProcs() []*Process {
   return f.evictedProcs
+}
+
+func (f *FCFS) ClearEvictedProcs() {
+  f.evictedProcs = nil
 }

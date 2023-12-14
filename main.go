@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -49,7 +50,7 @@ func ParseProcess(id int, line string) Process {
   if tasks[len(tasks)-1] == "" {
     tasks = tasks[:len(tasks)-1]
   }
-  fmt.Printf("Tasks: %v\n", tasks)
+  slog.Debug(fmt.Sprintf("Tasks: %v\n", tasks))
 	process := Process{id: id, arrivalTime: calcArrivalTime(id), state: READY, currentTaskIndex: 0, tasks: make([]Task, len(tasks))}
 	for i, task := range tasks {
 		process.tasks[i] = ParseTask(task)
@@ -72,7 +73,7 @@ func ParseProcesses(r io.Reader) []*Process {
 
 func main() {
 	flag.Parse()
-	fmt.Println("FCFS Scheduler")
+  slog.Info("Starting simulation")
   var input io.Reader;
 
   if *inputFile != "" {

@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"log/slog"
+)
 
 type ProcState int
 const (
@@ -45,8 +48,8 @@ func (p *Process) NextTask() *Task {
   return &p.tasks[p.currentTaskIndex+1]
 }
 
-func (p *Process) IsBlockedOrTerminated() bool {
-  return p.state == BLOCKED || p.state == TERMINATED
+func (p *Process) IsTaskCompleted() bool {
+  return p.state == BLOCKED || p.state == TERMINATED || p.state == READY
 }
 
 func (p *Process) AssignToCpu() {
@@ -56,7 +59,7 @@ func (p *Process) AssignToCpu() {
 }
 
 func (p *Process) AssignToIo() {
-  fmt.Printf("Process %d assigned to IO\n", p.id)
+  slog.Info(fmt.Sprintf("Process %d assigned to IO\n", p.id))
   p.state = READS_IO
   p.waitingTime = 0
   p.blockedTime = 0
@@ -68,15 +71,15 @@ func (p *Process) Tick() {
 }
 
 func (p *Process) incrementCounters() {
-  fmt.Printf("Process %d ticked. State: %v\n", p.id, p.state)
+  slog.Debug(fmt.Sprintf("Process %d ticked. State: %v\n", p.id, p.state))
   switch p.state {
   case TERMINATED:
-    fmt.Printf("Process %d is already terminated\n", p.id)
+    slog.Warn(fmt.Sprintf("Process %d is already terminated\n", p.id))
   case READY:
     p.waitingTime++
   case BLOCKED:
     p.blockedTime++
-  case RUNNING:
+  case RUNNING, READS_IO:
     p.CurTask().passedTime++
   }
 
@@ -87,27 +90,29 @@ func (p *Process) incrementCounters() {
 
 func (p *Process) updateState() {
   if p.currentTaskIndex == len(p.tasks) {
-    fmt.Printf("Process %d finished all tasks\n", p.id)
+    slog.Info(fmt.Sprintf("Process %d finished all tasks\n", p.id))
     p.state = TERMINATED
     return
   }
   if p.CurTask().IsFinished() {
-    fmt.Printf("Process %d finished task %d\n", p.id, p.currentTaskIndex)
+    slog.Debug(fmt.Sprintf("Process %d finished task %d\n", p.id, p.currentTaskIndex))
     p.completeTask()
   }
 }
 
 func (p *Process) completeTask() {
   p.currentTaskIndex++
-  if p.currentTaskIndex > len(p.tasks) {
+  if p.currentTaskIndex >= len(p.tasks) {
     p.state = TERMINATED
     return
   }
   switch p.CurTask().ResouceType {
   case CPU:
     p.state = READY
-  case IO1 | IO2:
+    slog.Debug(fmt.Sprintf("Process %d ready\n", p.id))
+  case IO1, IO2:
     p.state = BLOCKED
+    slog.Debug(fmt.Sprintf("Process %d blocked\n", p.id))
   }
 }
 

@@ -22,6 +22,7 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 )
 
 type GlobalTimer interface {
@@ -34,7 +35,7 @@ type Machine struct {
   io2Scheduler Scheduler
 
   unscheduledProcs []*Process
-  allProcs []*Process
+  runningProcs []*Process
   clock *Clock
 }
 
@@ -67,33 +68,15 @@ func (m *Machine) GetCurrentTick() int {
 // TODO: add Preemt mechanism to stop process and move it to queue
 
 func (m *Machine) allDone() bool {
-  for _, p := range m.allProcs {
-    if p.state != TERMINATED {
-      return false
-    }
-  }
-  return true
+  return len(m.runningProcs) == 0 && len(m.unscheduledProcs) == 0
 }
 
 func (m *Machine) loop() {
-  // infinite loop until all processes are done
-
   for {
     if m.allDone() {
       break
     }
-    // If have waiting process in queue, assign it to CPU
     m.tick()
-      // cpu, err := machine.GetFreeCpu()
-      // if err != nil {
-      //   fmt.Println(err)
-      //   continue
-      // }
-      // // Assign process to CPU
-      // machine.AssignToResource(&cpu, &cpuQ[0])
-      // // Remove process from queue
-      // cpuQ = cpuQ[1:]
-    // }
   }
 }
 
@@ -112,7 +95,7 @@ func (m *Machine) tick() {
 
   m.clock.currentTick++
 
-  for _, p := range m.allProcs {
+  for _, p := range m.runningProcs {
     p.Tick()
   }
 }
@@ -123,48 +106,58 @@ func (m *Machine) checkForNewProcs() {
       // skip this proc. It's not time yet
       continue
     }
-    fmt.Printf("Process %d arrived at tick %d\n", p.id, m.GetCurrentTick())
+    slog.Info(fmt.Sprintf("Process %d arrived at tick %d\n", p.id, m.GetCurrentTick()))
     m.cpuScheduler.PushToQueue(p)
     // remove this proc from array
     m.unscheduledProcs = append(m.unscheduledProcs[:i], m.unscheduledProcs[i+1:]...)
+    m.runningProcs = append(m.runningProcs, p)
   }
 }
 
 func (m *Machine) handleAllEvictedProcs() {
   ep := m.cpuScheduler.GetEvictedProcs()
+  ep = append(ep, m.io1Scheduler.GetEvictedProcs()...)
+  ep = append(ep, m.io2Scheduler.GetEvictedProcs()...)
   for _, p := range ep {
     m.handleEvictedProc(p)
   }
+  m.cpuScheduler.ClearEvictedProcs()
+  m.io1Scheduler.ClearEvictedProcs()
+  m.io2Scheduler.ClearEvictedProcs()
 }
 
 func (m *Machine) handleEvictedProc(p *Process) {
   switch p.state {
   case TERMINATED:
-    fmt.Printf("Process %d is done\n", p.id)
-  case RUNNING | READY:
+    slog.Info(fmt.Sprintf("Process %d is done at tick %d\n", p.id, m.GetCurrentTick()))
+    // remove from running procs
+    m.runningProcs = append(m.runningProcs[:p.id], m.runningProcs[p.id+1:]...)
+  case RUNNING, READY:
     // not finished or came from IO
     m.cpuScheduler.PushToQueue(p)
   case BLOCKED:
     m.pushToIO(p)
   case READS_IO:
+    // TODO: proc not changing from IO to READY
     panic(fmt.Sprintf("Process %d evicted in READS_IO state but IO scheduler is nonpreemptive\n", p.id))
   }
 }
 
 func (m *Machine) pushToIO(p *Process) {
-  switch p.NextTask().ResouceType {
+  switch p.CurTask().ResouceType {
   case IO1:
-    fmt.Printf("Process %d is blocked on IO1\n", p.id)
+    slog.Debug(fmt.Sprintf("Process %d is blocked on IO1\n", p.id))
     m.io1Scheduler.PushToQueue(p)
   case IO2:
-    fmt.Printf("Process %d is blocked on IO2\n", p.id)
+    slog.Debug(fmt.Sprintf("Process %d is blocked on IO2\n", p.id))
     m.io2Scheduler.PushToQueue(p)
+  case CPU:
+    panic(fmt.Sprintf("Proc %d is blocked by current task is cpu", p.id))
   }
 }
 
 func (m *Machine) Run(processes []*Process) {
-  m.allProcs = processes
-  m.unscheduledProcs = m.allProcs
+  m.unscheduledProcs = processes
 
   m.loop()
 }

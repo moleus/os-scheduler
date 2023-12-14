@@ -29,6 +29,8 @@ type GlobalTimer interface {
   GetCurrentTick() int
 }
 
+type SnapshotStateFunc func(row string)
+
 type Machine struct {
   cpuScheduler Scheduler
   io1Scheduler Scheduler
@@ -38,14 +40,15 @@ type Machine struct {
   runningProcs []*Process
   clock *Clock
   logger *slog.Logger
+  snapshotStateFunc SnapshotStateFunc
 }
 
 type Clock struct {
   currentTick int
 }
 
-func NewMachine(cpuScheduler Scheduler, io1Scheduler Scheduler, io2Scheduler Scheduler, clock *Clock, logger *slog.Logger) Machine {
-  return Machine{cpuScheduler, io1Scheduler, io2Scheduler, []*Process{}, []*Process{}, clock, logger}
+func NewMachine(cpuScheduler Scheduler, io1Scheduler Scheduler, io2Scheduler Scheduler, clock *Clock, logger *slog.Logger, snapshotStateFunc SnapshotStateFunc) Machine {
+  return Machine{cpuScheduler, io1Scheduler, io2Scheduler, []*Process{}, []*Process{}, clock, logger, snapshotStateFunc}
 }
 
 func (c *Clock) GetCurrentTick() int {
@@ -99,6 +102,8 @@ func (m *Machine) tick() {
   for _, p := range m.runningProcs {
     p.Tick()
   }
+
+  m.snapshotStateFunc(m.dumpState())
 }
 
 func (m *Machine) checkForNewProcs() {
@@ -107,7 +112,7 @@ func (m *Machine) checkForNewProcs() {
       // skip this proc. It's not time yet
       continue
     }
-    m.logger.Info(fmt.Sprintf("Process %d arrived at tick %d\n", p.id, m.GetCurrentTick()))
+    m.logger.Info(fmt.Sprintf("Process %d arrived at tick %d", p.id, m.GetCurrentTick()))
     m.cpuScheduler.PushToQueue(p)
     // remove this proc from array
     m.unscheduledProcs = append(m.unscheduledProcs[:i], m.unscheduledProcs[i+1:]...)
@@ -130,31 +135,64 @@ func (m *Machine) handleAllEvictedProcs() {
 func (m *Machine) handleEvictedProc(p *Process) {
   switch p.state {
   case TERMINATED:
-    m.logger.Info(fmt.Sprintf("Process %d is done at tick %d\n", p.id, m.GetCurrentTick()))
+    m.logger.Info(fmt.Sprintf("Process %d is done at tick %d", p.id, m.GetCurrentTick()))
     // remove from running procs
-    m.runningProcs = append(m.runningProcs[:p.id], m.runningProcs[p.id+1:]...)
+    for i, rp := range m.runningProcs {
+      if rp.id == p.id {
+        m.runningProcs = append(m.runningProcs[:i], m.runningProcs[i+1:]...)
+        break
+      }
+    }
   case RUNNING, READY:
     // not finished or came from IO
     m.cpuScheduler.PushToQueue(p)
   case BLOCKED:
     m.pushToIO(p)
   case READS_IO:
-    // TODO: proc not changing from IO to READY
-    panic(fmt.Sprintf("Process %d evicted in READS_IO state but IO scheduler is nonpreemptive\n", p.id))
+    panic(fmt.Sprintf("Process %d evicted in READS_IO state but IO scheduler is nonpreemptive", p.id))
   }
 }
 
 func (m *Machine) pushToIO(p *Process) {
   switch p.CurTask().ResouceType {
   case IO1:
-    m.logger.Debug(fmt.Sprintf("Process %d is blocked on IO1\n", p.id))
+    m.logger.Debug(fmt.Sprintf("Process %d is blocked on IO1", p.id))
     m.io1Scheduler.PushToQueue(p)
   case IO2:
-    m.logger.Debug(fmt.Sprintf("Process %d is blocked on IO2\n", p.id))
+    m.logger.Debug(fmt.Sprintf("Process %d is blocked on IO2", p.id))
     m.io2Scheduler.PushToQueue(p)
   case CPU:
     panic(fmt.Sprintf("Proc %d is blocked by current task is cpu", p.id))
   }
+}
+
+// DumpState - prints running processes on each cpu and io in one line
+// output format:
+// {tick} {procid on first cpu} {procid on second cpu} ... {procid on last cpu} {procid on io1} {procid on io2}
+// if no proc on cpu or io, output - instead of id
+func (m *Machine) dumpState() string {
+  cpuCount := 4
+  cpuStates := make([]string, cpuCount)
+
+  cpus := m.cpuScheduler.GetResource().(*CpuPool).cpus
+  for i, cpu := range cpus {
+    cpuStates[i] = resourceStateToString(cpu)
+  }
+
+  io1 := m.io1Scheduler.GetResource().(*Resource)
+  io1State := resourceStateToString(io1)
+
+  io2 := m.io2Scheduler.GetResource().(*Resource)
+  io2State := resourceStateToString(io2)
+
+  return fmt.Sprintf("%3d | %s %s %s %s | %s %s", m.GetCurrentTick(), cpuStates[0], cpuStates[1], cpuStates[2], cpuStates[3], io1State, io2State)
+}
+
+func resourceStateToString(r *Resource) string {
+  if r.state == BUSY {
+    return fmt.Sprintf("%d", r.currentProc.id)
+  }
+  return "-"
 }
 
 func (m *Machine) Run(processes []*Process) {

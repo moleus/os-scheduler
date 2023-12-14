@@ -14,6 +14,7 @@ import (
 var (
 	cpuCount = flag.Int("cpus", 4, "Number of CPUs")
   inputFile = flag.String("input", "", "Input file")
+  outputFile = flag.String("output", "result.txt", "Output file")
 )
 
 // input format, each process starts from new line. Tasks separated by semi-colon
@@ -72,6 +73,10 @@ func ParseProcesses(r io.Reader, logger *slog.Logger) []*Process {
 	return processes
 }
 
+func snapshotState(w io.Writer, row string) {
+  fmt.Fprintf(w, "%s\n", row)
+}
+
 func main() {
 	flag.Parse()
   var input io.Reader;
@@ -87,6 +92,19 @@ func main() {
     input = os.Stdin
   }
 
+  var output io.Writer;
+
+  output, err := os.Create(*outputFile)
+  if err != nil {
+    panic(err)
+  }
+
+  defer output.(*os.File).Close()
+  snapshotFunc := func(row string) {
+    snapshotState(output, row)
+  }
+
+
 	clock := &Clock{0}
 
   defaultHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})
@@ -97,7 +115,7 @@ func main() {
 	io2Scheduler := NewFCFS("IO2", NewResource("IO2", IO2), clock, logger)
 	cpuScheduler := NewFCFS("CPUs", NewCpuPool(*cpuCount), clock, logger)
 	// Run scheduler
-	machine := NewMachine(cpuScheduler, io1Scheduler, io2Scheduler, clock, logger)
+	machine := NewMachine(cpuScheduler, io1Scheduler, io2Scheduler, clock, logger, snapshotFunc)
 
 	machine.Run(processes)
 }

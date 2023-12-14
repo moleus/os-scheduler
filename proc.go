@@ -65,7 +65,7 @@ func (p *Process) AssignToCpu() {
 }
 
 func (p *Process) AssignToIo() {
-  p.logger.Info(fmt.Sprintf("Process %d assigned to IO\n", p.id))
+  p.logger.Info(fmt.Sprintf("Process %d assigned to IO", p.id))
   p.state = READS_IO
   p.waitingTime = 0
   p.blockedTime = 0
@@ -77,10 +77,10 @@ func (p *Process) Tick() {
 }
 
 func (p *Process) incrementCounters() {
-  p.logger.Debug(fmt.Sprintf("Process %d ticked. State: %v\n", p.id, p.state))
+  p.logger.Debug(fmt.Sprintf("Process %d ticked. State: %v", p.id, p.state))
   switch p.state {
   case TERMINATED:
-    p.logger.Warn(fmt.Sprintf("Process %d is already terminated\n", p.id))
+    p.logger.Warn(fmt.Sprintf("Process %d is already terminated", p.id))
   case READY:
     p.waitingTime++
   case BLOCKED:
@@ -96,12 +96,12 @@ func (p *Process) incrementCounters() {
 
 func (p *Process) updateState() {
   if p.currentTaskIndex == len(p.tasks) {
-    p.logger.Info(fmt.Sprintf("Process %d finished all tasks\n", p.id))
+    p.logger.Info(fmt.Sprintf("Process %d finished all tasks", p.id))
     p.state = TERMINATED
     return
   }
   if p.CurTask().IsFinished() {
-    p.logger.Debug(fmt.Sprintf("Process %d finished task %d\n", p.id, p.currentTaskIndex))
+    p.logger.Debug(fmt.Sprintf("Process %d finished task %d", p.id, p.currentTaskIndex))
     p.completeTask()
   }
 }
@@ -115,10 +115,10 @@ func (p *Process) completeTask() {
   switch p.CurTask().ResouceType {
   case CPU:
     p.state = READY
-    p.logger.Debug(fmt.Sprintf("Process %d ready\n", p.id))
+    p.logger.Debug(fmt.Sprintf("Process %d ready", p.id))
   case IO1, IO2:
     p.state = BLOCKED
-    p.logger.Debug(fmt.Sprintf("Process %d blocked\n", p.id))
+    p.logger.Debug(fmt.Sprintf("Process %d blocked", p.id))
   }
 }
 

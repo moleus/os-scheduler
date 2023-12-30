@@ -95,8 +95,8 @@ func (p *Process) AssignToIo() {
 
 func (p *Process) Tick() {
   p.incrementCounters()
-  p.updateState()
   p.updateGlobalProcStatsOnTick()
+  p.updateState()
 }
 
 func (p *Process) updateGlobalProcStatsOnTick() {
@@ -125,7 +125,6 @@ func (p *Process) incrementCounters() {
   case RUNNING, READS_IO:
     p.CurTask().passedTime++
   }
-
   if p.CurTask().passedTime > p.CurTask().totalTime {
     panic(fmt.Sprintf("Passed time is greater than total time for proc %d, Task %d", p.id, p.currentTaskIndex))
   }

@@ -18,10 +18,6 @@ var (
   procStatsFile = flag.String("procStats", "procStats.txt", "Process stats file")
 )
 
-// input format, each process starts from new line. Tasks separated by semi-colon
-// CPU(12);IO2(3);CPU(4);IO1(5);CPU(2)
-// CPU(4);IO1(20);CPU(10);IO1(5);CPU(2);IO2(15)
-
 func calcArrivalTime(procId int) int {
 	return procId * 2
 }

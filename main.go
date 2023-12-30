@@ -15,6 +15,7 @@ var (
 	cpuCount = flag.Int("cpus", 4, "Number of CPUs")
   inputFile = flag.String("input", "", "Input file")
   outputFile = flag.String("output", "result.txt", "Output file")
+  procStatsFile = flag.String("procStats", "procStats.txt", "Process stats file")
 )
 
 // input format, each process starts from new line. Tasks separated by semi-colon
@@ -63,7 +64,7 @@ func ParseProcess(id int, line string, logger *slog.Logger) *Process {
 // reads all lines until EOF
 func ParseProcesses(r io.Reader, logger *slog.Logger) []*Process {
   scanner := bufio.NewScanner(r)
-	var processes = []*Process{}
+	var processes = make([]*Process, 0)
   var i int
   for scanner.Scan() {
 		process := ParseProcess(i, scanner.Text(), logger)
@@ -75,6 +76,14 @@ func ParseProcesses(r io.Reader, logger *slog.Logger) []*Process {
 
 func snapshotState(w io.Writer, row string) {
   fmt.Fprintf(w, "%s\n", row)
+}
+
+func printProcsStats(w io.Writer, procs []*Process) {
+  fmt.Fprintf(w, "Process\tEntrance\tService\tWaiting\tStartTime\tEndTime\tTurnaround\n")
+  for _, proc := range procs {
+    stats := proc.GetStats()
+    fmt.Fprintf(w, "%d\t%d\t%d\t%d\t%d\t%d\t%d\n", stats.ProcId, stats.EntranceTime, stats.ServiceTime, stats.ReadyOrBlockedTime, stats.StartTime, stats.ExitTime, stats.TurnaroundTime)
+  }
 }
 
 func main() {
@@ -118,4 +127,12 @@ func main() {
 	machine := NewMachine(cpuScheduler, io1Scheduler, io2Scheduler, clock, logger, snapshotFunc)
 
 	machine.Run(processes)
+
+  procStatsFile, err := os.Create(*procStatsFile)
+  if err != nil {
+    panic(err)
+  }
+
+  defer procStatsFile.Close()
+  printProcsStats(procStatsFile, processes)
 }

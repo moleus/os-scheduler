@@ -196,7 +196,8 @@ func resourceStateToString(r *Resource) string {
 }
 
 func (m *Machine) Run(processes []*Process) {
-  m.unscheduledProcs = processes
+  m.unscheduledProcs = make([]*Process, len(processes))
+  copy(m.unscheduledProcs, processes)
 
   m.loop()
 }

@@ -20,6 +20,21 @@ type Task struct {
   totalTime int
 }
 
+
+type ProcStatistics interface {
+  GetStats() ProcStats
+}
+
+type ProcStats struct {
+  ProcId int
+  EntranceTime int
+  ServiceTime int
+  ExitTime int
+  StartTime int
+  ReadyOrBlockedTime int
+  TurnaroundTime int
+}
+
 type Process struct {
   id int
   arrivalTime int
@@ -32,10 +47,17 @@ type Process struct {
   blockedTime int
 
   logger *slog.Logger
+
+  procStats *ProcStats
 }
 
 func NewProcess(id int, arrivalTime int, tasks []Task, logger *slog.Logger) *Process {
-  return &Process{id, arrivalTime, READY, 0, tasks, 0, 0, logger}
+  procStats := &ProcStats{ProcId: id, EntranceTime: arrivalTime, StartTime: -1}
+  return &Process{id, arrivalTime, READY, 0, tasks, 0, 0, logger, procStats}
+}
+
+func (p *Process) GetStats() ProcStats {
+  return *p.procStats
 }
 
 func (p *Process) EstimatedTaskTime() int {
@@ -74,6 +96,21 @@ func (p *Process) AssignToIo() {
 func (p *Process) Tick() {
   p.incrementCounters()
   p.updateState()
+  p.updateGlobalProcStatsOnTick()
+}
+
+func (p *Process) updateGlobalProcStatsOnTick() {
+  if p.state == RUNNING || p.state == READS_IO {
+    if p.procStats.StartTime == -1 {
+      p.procStats.StartTime = p.arrivalTime + p.waitingTime
+    }
+    p.procStats.ServiceTime++
+  } else if p.state == READY || p.state == BLOCKED {
+    p.procStats.ReadyOrBlockedTime++
+  } else if p.state == TERMINATED {
+    p.procStats.TurnaroundTime = p.procStats.ServiceTime + p.procStats.ReadyOrBlockedTime
+    p.procStats.ExitTime = p.procStats.TurnaroundTime + p.procStats.EntranceTime
+  }
 }
 
 func (p *Process) incrementCounters() {
@@ -121,4 +158,3 @@ func (p *Process) completeTask() {
     p.logger.Debug(fmt.Sprintf("Process %d blocked", p.id))
   }
 }
-

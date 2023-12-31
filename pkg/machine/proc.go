@@ -2,6 +2,7 @@ package machine
 
 import (
 	"fmt"
+	"github.com/Moleus/os-solver/pkg/logging"
 	"log/slog"
 )
 
@@ -51,12 +52,12 @@ type Process struct {
 
 	procStats *ProcStats
 
-	ticks int
+	clock logging.GlobalTimer
 }
 
-func NewProcess(id int, arrivalTime int, tasks []Task, logger *slog.Logger) *Process {
+func NewProcess(id int, arrivalTime int, tasks []Task, logger *slog.Logger, clock logging.GlobalTimer) *Process {
 	procStats := &ProcStats{ProcId: id, EntranceTime: arrivalTime, StartTime: -1, ReadyOrBlockedTime: 0}
-	return &Process{id, arrivalTime, READY, 0, tasks, 0, 0, 0, logger, procStats, 0}
+	return &Process{id, arrivalTime, READY, 0, tasks, 0, 0, 0, logger, procStats, clock}
 }
 
 func (p *Process) GetStats() ProcStats {
@@ -102,21 +103,25 @@ func (p *Process) AssignToIo() {
 
 func (p *Process) Tick() {
 	// TODO: global stats not incremented. waitingTime is = 0
-	p.updateGlobalProcStatsOnTick()
+	p.updateStatsOnTickBefore()
 	p.incrementCounters()
 	p.updateState()
-	p.ticks++
+	p.updateGlobalProcStatsAfter()
 }
 
-func (p *Process) updateGlobalProcStatsOnTick() {
+func (p *Process) updateStatsOnTickBefore() {
 	if p.state == RUNNING || p.state == READS_IO {
 		if p.procStats.StartTime == -1 {
-			p.procStats.StartTime = p.arrivalTime - p.ticks
+			p.procStats.StartTime = p.clock.GetCurrentTick()
 		}
 		p.procStats.ServiceTime++
 	} else if p.state == READY || p.state == BLOCKED {
 		p.procStats.ReadyOrBlockedTime++
-	} else if p.state == TERMINATED {
+	}
+}
+
+func (p *Process) updateGlobalProcStatsAfter() {
+	if p.state == TERMINATED {
 		p.procStats.TurnaroundTime = p.procStats.ServiceTime + p.procStats.ReadyOrBlockedTime
 		p.procStats.ExitTime = p.procStats.TurnaroundTime + p.procStats.EntranceTime
 	}

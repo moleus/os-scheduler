@@ -46,7 +46,7 @@ func ParseTask(task string) m.Task {
 	return m.Task{ResouceType: taskType, TotalTime: taskTime}
 }
 
-func ParseProcess(id int, line string, logger *slog.Logger) *m.Process {
+func ParseProcess(id int, line string, logger *slog.Logger, clock log.GlobalTimer) *m.Process {
 	line = strings.TrimSpace(line)
 	tasks := strings.Split(line, ";")
 	if tasks[len(tasks)-1] == "" {
@@ -58,16 +58,16 @@ func ParseProcess(id int, line string, logger *slog.Logger) *m.Process {
 	for i, task := range tasks {
 		parsedTasks[i] = ParseTask(task)
 	}
-	process := m.NewProcess(id, calcArrivalTime(id), parsedTasks, logger)
+	process := m.NewProcess(id, calcArrivalTime(id), parsedTasks, logger, clock)
 	return process
 }
 
-func ParseProcesses(r io.Reader, logger *slog.Logger) []*m.Process {
+func ParseProcesses(r io.Reader, logger *slog.Logger, clock log.GlobalTimer) []*m.Process {
 	scanner := bufio.NewScanner(r)
 	var processes = make([]*m.Process, 0)
 	var i int
 	for scanner.Scan() {
-		process := ParseProcess(i, scanner.Text(), logger)
+		process := ParseProcess(i, scanner.Text(), logger, clock)
 		i++
 		processes = append(processes, process)
 	}
@@ -151,7 +151,7 @@ func main() {
 
 	defaultHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})
 	logger := slog.New(log.NewTickLoggerHandler(defaultHandler, clock))
-	processes := ParseProcesses(input, logger)
+	processes := ParseProcesses(input, logger, clock)
 
 	// IO is always fcfs
 	fcfs := m.NewNonPreemptive()

@@ -23,6 +23,7 @@ package machine
 import (
 	"fmt"
 	"log/slog"
+	"strings"
 )
 
 type SnapshotStateFunc func(row string)
@@ -37,14 +38,15 @@ type Machine struct {
 	clock             *Clock
 	logger            *slog.Logger
 	snapshotStateFunc SnapshotStateFunc
+	cpuCount          int
 }
 
 type Clock struct {
 	CurrentTick int
 }
 
-func NewMachine(cpuScheduler Scheduler, io1Scheduler Scheduler, io2Scheduler Scheduler, clock *Clock, logger *slog.Logger, snapshotStateFunc SnapshotStateFunc) Machine {
-	return Machine{cpuScheduler, io1Scheduler, io2Scheduler, []*Process{}, []*Process{}, clock, logger, snapshotStateFunc}
+func NewMachine(cpuScheduler Scheduler, io1Scheduler Scheduler, io2Scheduler Scheduler, clock *Clock, logger *slog.Logger, snapshotStateFunc SnapshotStateFunc, cpuCount int) Machine {
+	return Machine{cpuScheduler, io1Scheduler, io2Scheduler, []*Process{}, []*Process{}, clock, logger, snapshotStateFunc, cpuCount}
 }
 
 func (c *Clock) GetCurrentTick() int {
@@ -168,13 +170,13 @@ func (m *Machine) pushToIO(p *Process) {
 // {tick} {procid on first cpu} {procid on second cpu} ... {procid on last cpu} {procid on io1} {procid on io2}
 // if no proc on cpu or io, output - instead of id
 func (m *Machine) dumpState() string {
-	cpuCount := 4
-	cpuStates := make([]string, cpuCount)
+	cpusStateString := make([]string, m.cpuCount)
 
 	cpus := m.cpuScheduler.GetResource().(*CpuPool).cpus
 	for i, cpu := range cpus {
-		cpuStates[i] = resourceStateToString(cpu)
+		cpusStateString[i] = resourceStateToString(cpu)
 	}
+	cpusString := strings.Join(cpusStateString, " ")
 
 	io1 := m.io1Scheduler.GetResource().(*Resource)
 	io1State := resourceStateToString(io1)
@@ -182,7 +184,7 @@ func (m *Machine) dumpState() string {
 	io2 := m.io2Scheduler.GetResource().(*Resource)
 	io2State := resourceStateToString(io2)
 
-	return fmt.Sprintf("%3d | %s %s %s %s | %s %s", m.GetCurrentTick(), cpuStates[0], cpuStates[1], cpuStates[2], cpuStates[3], io1State, io2State)
+	return fmt.Sprintf("%3d | %s | %s %s", m.GetCurrentTick(), cpusString, io1State, io2State)
 }
 
 func resourceStateToString(r *Resource) string {

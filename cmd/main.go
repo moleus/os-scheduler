@@ -158,7 +158,7 @@ func main() {
 	cpuScheduler := m.NewSchedulerWrapper("CPUs", selectionFunc, evictor, m.NewCpuPool(*cpuCount), clock, logger)
 
 	// Run scheduler
-	machine := m.NewMachine(cpuScheduler, io1Scheduler, io2Scheduler, clock, logger, snapshotFunc)
+	machine := m.NewMachine(cpuScheduler, io1Scheduler, io2Scheduler, clock, logger, snapshotFunc, *cpuCount)
 
 	machine.Run(processes)
 

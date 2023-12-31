@@ -63,7 +63,10 @@ func (b *SchedulerWrapper) CheckRunningProcs() {
 }
 
 func (b *SchedulerWrapper) ProcessQueue() {
-	b.assignFromQueue()
+	elements := b.queue.Len()
+	for i := 0; i < elements; i++ {
+		b.assignFromQueue()
+	}
 }
 
 func (b *SchedulerWrapper) Assign(p *Process) {

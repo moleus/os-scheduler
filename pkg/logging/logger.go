@@ -1,4 +1,4 @@
-package main
+package logging
 
 import (
 	"bytes"
@@ -13,14 +13,14 @@ const (
 )
 
 type TickLoggerHandler struct {
-	h slog.Handler
-	b *bytes.Buffer
-	m *sync.Mutex
-  clock GlobalTimer
+	h     slog.Handler
+	b     *bytes.Buffer
+	m     *sync.Mutex
+	clock GlobalTimer
 }
 
 func NewTickLoggerHandler(h slog.Handler, clock GlobalTimer) *TickLoggerHandler {
-  return &TickLoggerHandler{h: h, b: &bytes.Buffer{}, m: &sync.Mutex{}, clock: clock}
+	return &TickLoggerHandler{h: h, b: &bytes.Buffer{}, m: &sync.Mutex{}, clock: clock}
 }
 
 func (h *TickLoggerHandler) Enabled(ctx context.Context, level slog.Level) bool {
@@ -36,14 +36,18 @@ func (h *TickLoggerHandler) WithGroup(name string) slog.Handler {
 }
 
 func (h *TickLoggerHandler) Handle(ctx context.Context, r slog.Record) error {
-  currentTick := fmt.Sprintf("t%d", h.clock.GetCurrentTick())
+	currentTick := fmt.Sprintf("t%d", h.clock.GetCurrentTick())
 
 	fmt.Println(
 		r.Time.Format(timeFormat),
 		r.Level,
-    currentTick,
+		currentTick,
 		r.Message,
 	)
 
 	return nil
+}
+
+type GlobalTimer interface {
+	GetCurrentTick() int
 }

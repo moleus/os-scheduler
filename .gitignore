@@ -1,0 +1,6 @@
+.*
+!.gitignore
+*.txt
+*.log
+main
+os-solver

@@ -1,4 +1,4 @@
-module moleus/os-solver
+module github.com/Moleus/os-solver
 
 go 1.21.4
 

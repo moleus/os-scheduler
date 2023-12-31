@@ -88,12 +88,12 @@ func printProcsStats(w io.Writer, procs []*m.Process) {
 
 func getEvictor(schedAlgo string) m.Evictor {
 	switch schedAlgo {
-	case "fcfs":
-		return m.NewFCFS()
+	case "fcfs", "spn":
+		return m.NewNonPreemptive()
 	case "rr1":
-		return m.NewRoundRobin(1)
+		return m.NewRoundRobinEvictor(1)
 	case "rr4":
-		return m.NewRoundRobin(4)
+		return m.NewRoundRobinEvictor(4)
 	default:
 		panic(fmt.Sprintf("Unknown scheduling algorithm %s", schedAlgo))
 	}
@@ -107,6 +107,8 @@ func getSelection(schedAlgo string) m.SelectionFunction {
 		return m.NewSelectionFIFO()
 	case "rr4":
 		return m.NewSelectionFIFO()
+	case "spn":
+		return m.NewSelectionSPN()
 	default:
 		panic(fmt.Sprintf("Unknown scheduling algorithm %s", schedAlgo))
 	}
@@ -146,7 +148,7 @@ func main() {
 	processes := ParseProcesses(input, logger)
 
 	// IO is always fcfs
-	fcfs := m.NewFCFS()
+	fcfs := m.NewNonPreemptive()
 
 	fifoSelection := m.NewSelectionFIFO()
 

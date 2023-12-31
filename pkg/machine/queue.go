@@ -2,6 +2,7 @@ package machine
 
 import (
 	"errors"
+	"fmt"
 
 	logger "github.com/Moleus/os-solver/pkg/logging"
 )
@@ -35,6 +36,20 @@ func (pq *ProcQueue) Pop() (*Process, error) {
 	return p.process, nil
 }
 
+func (pq *ProcQueue) Pick(process *Process) (*Process, error) {
+	for i, p := range pq.elements {
+		if p.process == process {
+			pq.elements = append(pq.elements[:i], pq.elements[i+1:]...)
+			return p.process, nil
+		}
+	}
+	return &Process{}, errors.New(fmt.Sprintf("Process %d not found in queue %s", process.id, pq.name))
+}
+
 func (pq *ProcQueue) Len() int {
 	return len(pq.elements)
+}
+
+func (pq *ProcQueue) GetQueueElements() []QueueElement {
+	return pq.elements
 }

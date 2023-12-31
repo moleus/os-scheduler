@@ -86,7 +86,7 @@ func printProcsStats(w io.Writer, procs []*m.Process) {
 	}
 }
 
-func getEvictor(schedAlgo string) m.Evictor {
+func getEvictor(schedAlgo string, procQueue *m.ProcQueue, cpuCount int) m.Evictor {
 	switch schedAlgo {
 	case "fcfs", "spn":
 		return m.NewNonPreemptive()
@@ -94,6 +94,8 @@ func getEvictor(schedAlgo string) m.Evictor {
 		return m.NewRoundRobinEvictor(1)
 	case "rr4":
 		return m.NewRoundRobinEvictor(4)
+	case "srt":
+		return m.NewSRTEvictor(procQueue, cpuCount)
 	default:
 		panic(fmt.Sprintf("Unknown scheduling algorithm %s", schedAlgo))
 	}
@@ -109,6 +111,8 @@ func getSelection(schedAlgo string) m.SelectionFunction {
 		return m.NewSelectionFIFO()
 	case "spn":
 		return m.NewSelectionSPN()
+	case "srt":
+		return m.NewSelectionSRT()
 	default:
 		panic(fmt.Sprintf("Unknown scheduling algorithm %s", schedAlgo))
 	}
@@ -152,12 +156,16 @@ func main() {
 
 	fifoSelection := m.NewSelectionFIFO()
 
-	evictor := getEvictor(*schedAlgo)
+	cpuProcQueue := m.NewProcQueue("CPUs", clock)
+	evictor := getEvictor(*schedAlgo, cpuProcQueue, *cpuCount)
 	selectionFunc := getSelection(*schedAlgo)
 
-	io1Scheduler := m.NewSchedulerWrapper("IO1", fifoSelection, fcfs, m.NewResource("IO1", m.IO1), clock, logger)
-	io2Scheduler := m.NewSchedulerWrapper("IO2", fifoSelection, fcfs, m.NewResource("IO2", m.IO1), clock, logger)
-	cpuScheduler := m.NewSchedulerWrapper("CPUs", selectionFunc, evictor, m.NewCpuPool(*cpuCount), clock, logger)
+	io1ProcQueue := m.NewProcQueue("IO1", clock)
+	io2ProcQueue := m.NewProcQueue("IO2", clock)
+
+	io1Scheduler := m.NewSchedulerWrapper("IO1", io2ProcQueue, fifoSelection, fcfs, m.NewResource("IO1", m.IO1), clock, logger)
+	io2Scheduler := m.NewSchedulerWrapper("IO2", io1ProcQueue, fifoSelection, fcfs, m.NewResource("IO2", m.IO2), clock, logger)
+	cpuScheduler := m.NewSchedulerWrapper("CPUs", cpuProcQueue, selectionFunc, evictor, m.NewCpuPool(*cpuCount), clock, logger)
 
 	// Run scheduler
 	machine := m.NewMachine(cpuScheduler, io1Scheduler, io2Scheduler, clock, logger, snapshotFunc, *cpuCount)

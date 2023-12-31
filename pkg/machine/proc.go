@@ -73,6 +73,10 @@ func (p *Process) CurTask() *Task {
 	return &p.tasks[p.currentTaskIndex]
 }
 
+func (p *Process) TaskRemainingTime() int {
+	return p.CurTask().TotalTime - p.CurTask().passedTime
+}
+
 func (p *Process) NextTask() *Task {
 	return &p.tasks[p.currentTaskIndex+1]
 }

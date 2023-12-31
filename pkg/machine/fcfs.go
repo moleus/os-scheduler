@@ -2,14 +2,14 @@ package machine
 
 type SelectionFIFO struct{}
 
-// FCFS - scheduler manages specific resource
-type FCFS struct{}
+// NonPreemptive - scheduler manages specific resource
+type NonPreemptive struct{}
 
-func NewFCFS() *FCFS {
-	return &FCFS{}
+func NewNonPreemptive() Evictor {
+	return &NonPreemptive{}
 }
 
-func (f *FCFS) ChooseToEvict(procs []*Process) []*Process {
+func (NonPreemptive) ChooseToEvict(procs []*Process) []*Process {
 	procsToEvict := make([]*Process, 0)
 	for _, p := range procs {
 		if p.IsTaskCompleted() {

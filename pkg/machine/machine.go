@@ -1,9 +1,9 @@
 /*
-FCFS scheduler for Single CPU
+NonPreemptive scheduler for Single CPU
 Each process has a sequence of CPU time and IO time switching
 Each process has time it is added at start
 
-We have N IO devices. Each have FCFS queue
+We have N IO devices. Each have NonPreemptive queue
 
 Example input for proc1 and proc2 (CPU(x) means x time units of CPU time, IO(y) means y time units of IO time):
 CPU(5) IO(2) CPU(1) IO(20) CPU(8)

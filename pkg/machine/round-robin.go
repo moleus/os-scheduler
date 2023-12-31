@@ -6,7 +6,7 @@ type RoundRobin struct {
 	quantum int
 }
 
-func NewRoundRobin(quantum int) *RoundRobin {
+func NewRoundRobinEvictor(quantum int) Evictor {
 	return &RoundRobin{quantum: quantum}
 }
 

@@ -79,10 +79,11 @@ func snapshotState(w io.Writer, row string) {
 }
 
 func printProcsStats(w io.Writer, procs []*m.Process) {
-	fmt.Fprintf(w, "Process\tEntrance\tService\tWaiting\tStartTime\tEndTime\tTurnaround\n")
+	fmt.Fprintf(w, "Process\tArrival\tService\tWaiting\tFinish time\tTurnaround (Tr)\tTr/Ts\n")
 	for _, proc := range procs {
 		stats := proc.GetStats()
-		fmt.Fprintf(w, "%d\t%d\t%d\t%d\t%d\t%d\t%d\n", stats.ProcId, stats.EntranceTime, stats.ServiceTime, stats.ReadyOrBlockedTime, stats.StartTime, stats.ExitTime, stats.TurnaroundTime)
+		normalizedTurnaround := float64(stats.TurnaroundTime) / float64(stats.ServiceTime)
+		fmt.Fprintf(w, "%d\t%d\t%d\t%d\t%d\t%d\t%f\n", stats.ProcId, stats.EntranceTime, stats.ServiceTime, stats.ReadyOrBlockedTime, stats.ExitTime, stats.TurnaroundTime, normalizedTurnaround)
 	}
 }
 

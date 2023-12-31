@@ -88,7 +88,7 @@ func printProcsStats(w io.Writer, procs []*m.Process) {
 
 func getEvictor(schedAlgo string, procQueue *m.ProcQueue, cpuCount int) m.Evictor {
 	switch schedAlgo {
-	case "fcfs", "spn":
+	case "fcfs", "spn", "hrrn":
 		return m.NewNonPreemptive()
 	case "rr1":
 		return m.NewRoundRobinEvictor(1)
@@ -113,6 +113,8 @@ func getSelection(schedAlgo string) m.SelectionFunction {
 		return m.NewSelectionSPN()
 	case "srt":
 		return m.NewSelectionSRT()
+	case "hrrn":
+		return m.NewSelectionHRRN()
 	default:
 		panic(fmt.Sprintf("Unknown scheduling algorithm %s", schedAlgo))
 	}

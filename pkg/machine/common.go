@@ -47,8 +47,7 @@ type SchedulerWrapper struct {
 	evictor       Evictor
 }
 
-func NewSchedulerWrapper(name string, selection SelectionFunction, evictor Evictor, r Resourcer, clock log.GlobalTimer, logger *slog.Logger) *SchedulerWrapper {
-	queue := NewProcQueue(name, clock)
+func NewSchedulerWrapper(name string, queue *ProcQueue, selection SelectionFunction, evictor Evictor, r Resourcer, clock log.GlobalTimer, logger *slog.Logger) *SchedulerWrapper {
 	evictedProcs := make([]*Process, 0)
 	return &SchedulerWrapper{name: name, resource: r, queue: queue, clock: clock, evictedProcs: evictedProcs, logger: logger, selectionFunc: selection, evictor: evictor}
 }

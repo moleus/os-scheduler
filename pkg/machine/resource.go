@@ -19,7 +19,6 @@ const (
 
 type Resourcer interface {
 	GetFree() (*Resource, error)
-	AssignToFree(p *Process) error
 	MustEvict(p *Process)
 	GetProcs() []*Process
 }
@@ -102,15 +101,6 @@ func (cpu *CpuPool) GetFree() (*Resource, error) {
 		}
 	}
 	return nil, fmt.Errorf("No available cpus")
-}
-
-func (cpu *CpuPool) AssignToFree(p *Process) error {
-	for _, res := range cpu.cpus {
-		if res.state == FREE {
-			return res.AssignToFree(p)
-		}
-	}
-	return fmt.Errorf("No available cpus")
 }
 
 func (cpu *CpuPool) Tick() {

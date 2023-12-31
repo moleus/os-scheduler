@@ -50,11 +50,13 @@ type Process struct {
 	logger *slog.Logger
 
 	procStats *ProcStats
+
+	ticks int
 }
 
 func NewProcess(id int, arrivalTime int, tasks []Task, logger *slog.Logger) *Process {
-	procStats := &ProcStats{ProcId: id, EntranceTime: arrivalTime, StartTime: -1}
-	return &Process{id, arrivalTime, READY, 0, tasks, 0, 0, 0, logger, procStats}
+	procStats := &ProcStats{ProcId: id, EntranceTime: arrivalTime, StartTime: -1, ReadyOrBlockedTime: 0}
+	return &Process{id, arrivalTime, READY, 0, tasks, 0, 0, 0, logger, procStats, 0}
 }
 
 func (p *Process) GetStats() ProcStats {
@@ -99,15 +101,17 @@ func (p *Process) AssignToIo() {
 }
 
 func (p *Process) Tick() {
+	// TODO: global stats not incremented. waitingTime is = 0
+	p.updateGlobalProcStatsOnTick()
 	p.incrementCounters()
 	p.updateState()
-	p.updateGlobalProcStatsOnTick()
+	p.ticks++
 }
 
 func (p *Process) updateGlobalProcStatsOnTick() {
 	if p.state == RUNNING || p.state == READS_IO {
 		if p.procStats.StartTime == -1 {
-			p.procStats.StartTime = p.arrivalTime + p.waitingTime
+			p.procStats.StartTime = p.arrivalTime - p.ticks
 		}
 		p.procStats.ServiceTime++
 	} else if p.state == READY || p.state == BLOCKED {

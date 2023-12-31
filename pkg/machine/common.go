@@ -9,9 +9,7 @@ import (
 type Scheduler interface {
 	CheckRunningProcs()
 	ProcessQueue()
-	Assign(p *Process)
 	PushToQueue(p *Process)
-	GetQueueLen() int
 	GetEvictedProcs() []*Process
 	ClearEvictedProcs()
 	GetResource() Resourcer
@@ -68,16 +66,8 @@ func (b *SchedulerWrapper) ProcessQueue() {
 	}
 }
 
-func (b *SchedulerWrapper) Assign(p *Process) {
-	b.resource.AssignToFree(p)
-}
-
 func (b *SchedulerWrapper) PushToQueue(p *Process) {
 	b.queue.Push(p)
-}
-
-func (b *SchedulerWrapper) GetQueueLen() int {
-	return b.queue.Len()
 }
 
 func (b *SchedulerWrapper) GetEvictedProcs() []*Process {

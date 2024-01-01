@@ -19,11 +19,14 @@ var (
 	inputFile     = flag.String("input", "", "Input file")
 	outputFile    = flag.String("output", "result.txt", "Output file")
 	procStatsFile = flag.String("procStats", "procStats.txt", "Process stats file")
-	schedAlgo     = flag.String("sched", "fcfs", "Scheduling algorithm (default: fcfs). Possible values: fcfs, rr1, rr2, spn, srt, hrrn")
+	schedAlgo     = flag.String("algo", "fcfs", "Scheduling algorithm (default: fcfs). Possible values: fcfs, rr1, rr2, spn, srt, hrrn, rr")
+  roundRobinQuantum = flag.Int("quantum", 4, "Round robin quantum (default: 4)")
+  arrivalInterval = flag.Int("interval", 2, "Proc arrival interval (default: 2)")
+  logLevel = flag.String("log", "debug", "Log level (default: debug)")
 )
 
 func calcArrivalTime(procId int) int {
-	return procId * 2
+	return procId * *arrivalInterval
 }
 
 func ParseTask(task string) m.Task {
@@ -95,6 +98,8 @@ func getEvictor(schedAlgo string, procQueue *m.ProcQueue, cpuCount int) m.Evicto
 		return m.NewRoundRobinEvictor(1)
 	case "rr4":
 		return m.NewRoundRobinEvictor(4)
+  case "rr":
+    return m.NewRoundRobinEvictor(*roundRobinQuantum)
 	case "srt":
 		return m.NewSRTEvictor(procQueue, cpuCount)
 	default:
@@ -106,9 +111,7 @@ func getSelection(schedAlgo string) m.SelectionFunction {
 	switch schedAlgo {
 	case "fcfs":
 		return m.NewSelectionFIFO()
-	case "rr1":
-		return m.NewSelectionFIFO()
-	case "rr4":
+	case "rr1", "rr4", "rr":
 		return m.NewSelectionFIFO()
 	case "spn":
 		return m.NewSelectionSPN()
@@ -119,6 +122,21 @@ func getSelection(schedAlgo string) m.SelectionFunction {
 	default:
 		panic(fmt.Sprintf("Unknown scheduling algorithm %s", schedAlgo))
 	}
+}
+
+func parseLogLevel(level string) slog.Level {
+  switch level {
+  case "debug":
+    return slog.LevelDebug
+  case "info":
+    return slog.LevelInfo
+  case "warn":
+    return slog.LevelWarn
+  case "error":
+    return slog.LevelError
+  default:
+    panic(fmt.Sprintf("Unknown log level %s", level))
+  }
 }
 
 func main() {
@@ -150,7 +168,8 @@ func main() {
 
 	clock := &m.Clock{CurrentTick: 0}
 
-	defaultHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})
+  logLevel := parseLogLevel(*logLevel)
+	defaultHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel})
 	logger := slog.New(log.NewTickLoggerHandler(defaultHandler, clock))
 	processes := ParseProcesses(input, logger, clock)
 

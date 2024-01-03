@@ -173,6 +173,9 @@ func main() {
 	logger := slog.New(log.NewTickLoggerHandler(defaultHandler, clock))
 	processes := ParseProcesses(input, logger, clock)
 
+  logger.Info(fmt.Sprintf("Running with %d CPUs", *cpuCount))
+  logger.Info(fmt.Sprintf("Total processes: %d", len(processes)))
+
 	// IO is always fcfs
 	fcfs := m.NewNonPreemptive()
 

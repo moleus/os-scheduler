@@ -107,8 +107,7 @@ func (m *Machine) tick() {
 }
 
 func (m *Machine) checkForNewProcs() {
-  unscheduledProcsTmp := make([]*Process, 0)
-  procsToRun := make([]*Process, 0)
+  unscheduleCandidates := make([]*Process, 0)
 	for _, p := range m.unscheduledProcs {
 		if m.clock.CurrentTick < p.arrivalTime {
 			// skip this proc. It's not time yet
@@ -117,15 +116,11 @@ func (m *Machine) checkForNewProcs() {
 		m.logger.Info(fmt.Sprintf("Process %d arrived at tick %d", p.id, m.GetCurrentTick()))
 		m.cpuScheduler.PushToQueue(p)
 		m.runningProcs = append(m.runningProcs, p)
-    procsToRun = append(procsToRun, p)
+    unscheduleCandidates = append(unscheduleCandidates, p)
 	}
-  for _, p := range m.unscheduledProcs {
-    if !slices.Contains(procsToRun, p) {
-      unscheduledProcsTmp = append(unscheduledProcsTmp, p)
-    }
-  }
-  m.unscheduledProcs = make([]*Process, 0)
-  copy(m.unscheduledProcs, unscheduledProcsTmp)
+  m.unscheduledProcs = slices.DeleteFunc(m.unscheduledProcs, func(p *Process) bool {
+    return slices.Contains(unscheduleCandidates, p)
+  })
   m.logger.Debug(fmt.Sprintf("Unscheduled procs: %d", len(m.unscheduledProcs)))
 }
 

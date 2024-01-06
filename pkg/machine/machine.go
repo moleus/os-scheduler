@@ -84,14 +84,14 @@ func (m *Machine) loop() {
 }
 
 func (m *Machine) tick() {
-	// problem: evicted process comes before new process?
-	m.checkForNewProcs()
-
 	m.cpuScheduler.CheckRunningProcs()
 	m.io1Scheduler.CheckRunningProcs()
 	m.io2Scheduler.CheckRunningProcs()
 
 	m.handleAllEvictedProcs()
+
+	// problem: evicted process comes before new process?
+	m.checkForNewProcs()
 
 	m.cpuScheduler.ProcessQueue()
 	m.io1Scheduler.ProcessQueue()

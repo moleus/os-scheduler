@@ -194,7 +194,7 @@ func (m *Machine) dumpState() string {
 
 func resourceStateToString(r *Resource) string {
 	if r.state == BUSY {
-		return fmt.Sprintf("%d", r.currentProc.id)
+		return fmt.Sprintf("%d", r.currentProc.id+1)
 	}
 	return "-"
 }

@@ -98,10 +98,11 @@ func (s *SrtEvictor) ChooseToEvict(procs []*Process) []*Process {
 			continue
 		}
 		if queueElements[q].process.TaskRemainingTime() < procsCopy[c].TaskRemainingTime() {
+			procsToEvict = append(procsToEvict, procsCopy[c])
 			c++
 			q++
 		} else {
-			q++
+			c++
 		}
 	}
 

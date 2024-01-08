@@ -101,7 +101,7 @@ func getEvictor(schedAlgo string, procQueue *m.ProcQueue, cpuCount int) m.Evicto
 	case "rr":
 		return m.NewRoundRobinEvictor(*roundRobinQuantum)
 	case "srt":
-		return m.NewSRTEvictor(procQueue, cpuCount)
+		panic("SRT implementation is not ready yet")
 	default:
 		panic(fmt.Sprintf("Unknown scheduling algorithm %s", schedAlgo))
 	}
@@ -116,7 +116,7 @@ func getSelection(schedAlgo string) m.SelectionFunction {
 	case "spn":
 		return m.NewSelectionSPN()
 	case "srt":
-		return m.NewSelectionSRT()
+		panic("SRT implementation is not ready yet")
 	case "hrrn":
 		return m.NewSelectionHRRN()
 	default:

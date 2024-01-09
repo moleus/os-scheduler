@@ -90,35 +90,23 @@ func printProcsStats(w io.Writer, procs []*m.Process) {
 	}
 }
 
-func getEvictor(schedAlgo string, procQueue *m.ProcQueue, cpuCount int) m.Evictor {
-	switch schedAlgo {
-	case "fcfs", "spn", "hrrn":
-		return m.NewNonPreemptive()
-	case "rr1":
-		return m.NewRoundRobinEvictor(1)
-	case "rr4":
-		return m.NewRoundRobinEvictor(4)
-	case "rr":
-		return m.NewRoundRobinEvictor(*roundRobinQuantum)
-	case "srt":
-		panic("SRT implementation is not ready yet")
-	default:
-		panic(fmt.Sprintf("Unknown scheduling algorithm %s", schedAlgo))
-	}
-}
-
-func getSelection(schedAlgo string) m.SelectionFunction {
+func getScheduler(schedAlgo string, procQueue *m.ProcQueue, cpuCount int) (m.Evictor, m.SelectionFunction) {
 	switch schedAlgo {
 	case "fcfs":
-		return m.NewSelectionFIFO()
-	case "rr1", "rr4", "rr":
-		return m.NewSelectionFIFO()
+		return m.NewNonPreemptive(), m.NewSelectionFIFO()
+	case "rr1":
+		return m.NewRoundRobinEvictor(1), m.NewSelectionFIFO()
+	case "rr4":
+		return m.NewRoundRobinEvictor(4), m.NewSelectionFIFO()
+	case "rr":
+		return m.NewRoundRobinEvictor(*roundRobinQuantum), m.NewSelectionFIFO()
 	case "spn":
-		return m.NewSelectionSPN()
+		return m.NewNonPreemptive(), m.NewSelectionSPN()
 	case "srt":
-		panic("SRT implementation is not ready yet")
+		srt := m.NewSchedulerSRT(procQueue, cpuCount)
+		return srt, srt
 	case "hrrn":
-		return m.NewSelectionHRRN()
+		return m.NewNonPreemptive(), m.NewSelectionHRRN()
 	default:
 		panic(fmt.Sprintf("Unknown scheduling algorithm %s", schedAlgo))
 	}
@@ -182,8 +170,7 @@ func main() {
 	fifoSelection := m.NewSelectionFIFO()
 
 	cpuProcQueue := m.NewProcQueue("CPUs", clock)
-	evictor := getEvictor(*schedAlgo, cpuProcQueue, *cpuCount)
-	selectionFunc := getSelection(*schedAlgo)
+	evictor, selectionFunc := getScheduler(*schedAlgo, cpuProcQueue, *cpuCount)
 
 	io1ProcQueue := m.NewProcQueue("IO1", clock)
 	io2ProcQueue := m.NewProcQueue("IO2", clock)

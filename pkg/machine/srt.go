@@ -6,20 +6,49 @@ import (
 	"sort"
 )
 
-type SelectionSRT struct{}
+// TODO: add list of evicted processes to distinguish between evicted and new comming processes
+type SchedulerSRT struct {
+	oldProcs []*Process
+	procQueue    *ProcQueue
+	cpuCount     int
+}
 
-func NewSelectionSRT() SelectionFunction {
-	return &SelectionSRT{}
+func NewSchedulerSRT(procQueue *ProcQueue, cpuCount int) *SchedulerSRT {
+	evictedProcs := make([]*Process, 0)
+	return &SchedulerSRT{evictedProcs, procQueue, cpuCount}
 }
 
 // Select - picks process with the shortest remaining time
-func (s SelectionSRT) Select(queue *ProcQueue) (*Process, error) {
+func (s *SchedulerSRT) Select(queue *ProcQueue) (*Process, error) {
 	elements := queue.GetQueueElements()
 	if len(elements) == 0 {
 		return &Process{}, errors.New("queue is empty")
 	}
+
+	// if doesn't contain new procs, then return
+	hasNewProcs := hasNewProcs(queue, s.oldProcs)
+
+	if !hasNewProcs {
+		return &Process{}, errors.New("no new procs")
+	}
+
 	proc := getMinByRemainingTaskTime(elements)
+
 	return queue.Pick(proc)
+}
+
+func hasNewProcs(queue *ProcQueue, oldProcs []*Process) bool {
+	elements := queue.GetQueueElements()
+	if len(elements) == 0 {
+		return false
+	}
+
+	for _, e := range elements {
+		if !slices.Contains(oldProcs, e.process) {
+			return true
+		}
+	}
+	return false
 }
 
 func getMinByRemainingTaskTime(elements []QueueElement) *Process {
@@ -36,36 +65,20 @@ func getMinByRemainingTaskTime(elements []QueueElement) *Process {
 	return minProc
 }
 
-// SrtEvictor - Shortest Remaining Time (SRT) scheduler
-// First, we evict process from CPU if we have process in queue shorter than current
-// I think, we should evict as many processes as we can, so for each proc in Queue we check if it's shorter than running processes
-// Algorithm:
-// sort processes in queue by remaining time (increase)
-// sort processes in CPU by remaining time (increase)
-// if queue[q] < cpu[c] then evict cpu[c] and q++, c++
-// if queue[q] > cpu[c] then return (we can't evict anything)
-// if queue[q] == cpu[c] then evict cpu[0] and q++, c++
-type SrtEvictor struct {
-	procQueue *ProcQueue
-	cpuCount  int
-}
-
-func NewSRTEvictor(procQueue *ProcQueue, cpuCount int) Evictor {
-	return &SrtEvictor{procQueue: procQueue, cpuCount: cpuCount}
-}
-
-func (s *SrtEvictor) ChooseToEvict(procs []*Process) []*Process {
+func (s *SchedulerSRT) ChooseToEvict(procs []*Process) []*Process {
 	procsToEvict := make([]*Process, 0)
 	freeCpus := s.cpuCount - len(procs)
 
 	// first evict completed procs
 	for _, p := range procs {
 		if p.IsTaskCompleted() {
+			slices.DeleteFunc(s.oldProcs, func(evicted *Process) bool {
+				return p == evicted
+			})
 			procsToEvict = append(procsToEvict, p)
 			freeCpus++
 		}
 	}
-
 	srcQueueElements := s.procQueue.GetQueueElements()
 	if len(srcQueueElements) == 0 {
 		return procsToEvict
@@ -73,6 +86,15 @@ func (s *SrtEvictor) ChooseToEvict(procs []*Process) []*Process {
 
 	queueElements := make([]QueueElement, len(srcQueueElements))
 	copy(queueElements, srcQueueElements)
+
+	// мы убираем из очереди только когда в очереди есть новый процесс. Если в очереди нет новых процессов, то никого не убираем
+	if !hasNewProcs(s.procQueue, s.oldProcs) {
+		return procsToEvict
+	}
+
+	slices.DeleteFunc(queueElements, func(qe QueueElement) bool {
+		return slices.Contains(s.oldProcs, qe.process)
+	})
 
 	sort.Slice(queueElements, func(i, j int) bool {
 		return queueElements[i].process.TaskRemainingTime() < queueElements[j].process.TaskRemainingTime()

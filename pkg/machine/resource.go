@@ -47,20 +47,20 @@ func NewCpuPool(n int) *CpuPool {
 	return &CpuPool{cpus}
 }
 
-func (resource *Resource) GetFree() (*Resource, error) {
-	if resource.state == BUSY {
+func (r *Resource) GetFree() (*Resource, error) {
+	if r.state == BUSY {
 		return nil, fmt.Errorf("Resource is busy")
 	}
-	return resource, nil
+	return r, nil
 }
 
-func (resource *Resource) AssignToFree(p *Process) error {
-	if resource.state == BUSY {
+func (r *Resource) AssignToFree(p *Process) error {
+	if r.state == BUSY {
 		return fmt.Errorf("Resource is busy")
 	}
-	resource.state = BUSY
-	resource.currentProc = p
-	switch resource.resourceType {
+	r.state = BUSY
+	r.currentProc = p
+	switch r.resourceType {
 	case CPU:
 		p.AssignToCpu()
 	case IO1, IO2:

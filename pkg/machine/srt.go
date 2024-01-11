@@ -72,7 +72,7 @@ func (s *SchedulerSRT) ChooseToEvict(procs []*Process) []*Process {
 	// first evict completed procs
 	for _, p := range procs {
 		if p.IsTaskCompleted() {
-			slices.DeleteFunc(s.oldProcs, func(evicted *Process) bool {
+			s.oldProcs = slices.DeleteFunc(s.oldProcs, func(evicted *Process) bool {
 				return p == evicted
 			})
 			procsToEvict = append(procsToEvict, p)
@@ -92,7 +92,7 @@ func (s *SchedulerSRT) ChooseToEvict(procs []*Process) []*Process {
 		return procsToEvict
 	}
 
-	slices.DeleteFunc(queueElements, func(qe QueueElement) bool {
+	queueElements = slices.DeleteFunc(queueElements, func(qe QueueElement) bool {
 		return slices.Contains(s.oldProcs, qe.process)
 	})
 

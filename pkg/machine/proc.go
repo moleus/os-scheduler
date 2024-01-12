@@ -123,7 +123,7 @@ func (p *Process) updateStatsOnTickBefore() {
 func (p *Process) updateGlobalProcStatsAfter() {
 	if p.state == TERMINATED {
 		p.procStats.TurnaroundTime = p.procStats.ServiceTime + p.procStats.ReadyOrBlockedTime
-		p.procStats.ExitTime = p.procStats.TurnaroundTime + p.procStats.EntranceTime
+		p.procStats.ExitTime = p.procStats.TurnaroundTime + p.procStats.EntranceTime - 1
 	}
 }
 

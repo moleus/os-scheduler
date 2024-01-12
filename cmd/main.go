@@ -2,8 +2,10 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"flag"
 	"fmt"
+	"github.com/xuri/excelize/v2"
 	"io"
 	"log/slog"
 	"os"
@@ -23,7 +25,10 @@ var (
 	roundRobinQuantum = flag.Int("quantum", 4, "Round robin quantum (default: 4)")
 	arrivalInterval   = flag.Int("interval", 2, "Proc arrival interval (default: 2)")
 	logLevel          = flag.String("log", "debug", "Log level (default: debug)")
+	exportXlsx        = flag.String("export-xlsx", "", "Path for creating xlsx report")
 )
+
+const countOfHardcodedColors = 10
 
 func calcArrivalTime(procId int) int {
 	return procId * *arrivalInterval
@@ -80,13 +85,100 @@ func ParseProcesses(r io.Reader, logger *slog.Logger, clock log.GlobalTimer) []*
 func snapshotState(w io.Writer, row string) {
 	fmt.Fprintf(w, "%s\n", row)
 }
+func snapshotStateXlsx(f *excelize.File, sheet string, tick string, cpusStateString []string, io1State string, io2State string, colors [countOfHardcodedColors]int) {
+	err := f.SetCellValue(sheet, fmt.Sprintf("A%s", tick), tick)
+	if err != nil {
+		return
+	}
+	for pos, val := range cpusStateString {
+		err := f.SetCellValue(sheet, fmt.Sprintf("%s%s", fmt.Sprintf("%c", 'A'+pos+1), tick), val)
+		if err != nil {
+			return
+		}
+		setStyle(f, sheet, fmt.Sprintf("%s%s", fmt.Sprintf("%c", 'A'+pos+1), tick), val, colors)
+	}
+	err = f.SetCellValue(sheet, fmt.Sprintf("%s%s", fmt.Sprintf("%c", 'A'+*cpuCount+1), tick), io1State)
+	if err != nil {
+		return
+	}
+	setStyle(f, sheet, fmt.Sprintf("%s%s", fmt.Sprintf("%c", 'A'+*cpuCount+1), tick), io1State, colors)
+	err = f.SetCellValue(sheet, fmt.Sprintf("%s%s", fmt.Sprintf("%c", 'A'+*cpuCount+2), tick), io2State)
+	if err != nil {
+		return
+	}
+	setStyle(f, sheet, fmt.Sprintf("%s%s", fmt.Sprintf("%c", 'A'+*cpuCount+2), tick), io2State, colors)
+}
+func setStyle(f *excelize.File, spreed string, cell string, val string, colors [countOfHardcodedColors]int) {
+	if val == "-" {
+		return
+	}
+	i, err := strconv.Atoi(val)
+	if err != nil {
+		panic(err)
+	}
+	if i > countOfHardcodedColors {
+		return
+	}
+	err = f.SetCellStyle(spreed, cell, cell, colors[i])
+	if err != nil {
+		panic(err)
+	}
+}
+func getF() *excelize.File {
+	var f *excelize.File
+	if _, err := os.Stat(*exportXlsx); errors.Is(err, os.ErrNotExist) {
+		f = excelize.NewFile()
+
+	} else {
+		f, err = excelize.OpenFile(*exportXlsx)
+		if err != nil {
+			panic(err)
+		}
+		err = f.Close()
+		if err != nil {
+			panic(err)
+		}
+	}
+	index, err := f.NewSheet(*schedAlgo)
+	if err != nil {
+		panic(err)
+	}
+	f.SetActiveSheet(index)
+	err = f.DeleteSheet("Sheet1")
+	if err != nil {
+		return nil
+	}
+	return f
+}
+func printRow(f *excelize.File, sheet string, offset int, row int, values []string) {
+	for pos, val := range values {
+		err := f.SetCellValue(sheet, fmt.Sprintf("%s%d", fmt.Sprintf("%c", 'A'+offset+pos), row), val)
+		if err != nil {
+			return
+		}
+	}
+}
+func generateStyles(f *excelize.File) [countOfHardcodedColors]int {
+	colors := [countOfHardcodedColors]string{"E0EBF5", "#93e476", "#efb2b9", "#6a74eb", "#f0b1e4", "#c1b1f0", "#ead669", "#ebaa6a", "#eb836a", "#6aeb71"}
+	var styles [countOfHardcodedColors]int
+	for i := 0; i < countOfHardcodedColors; i++ {
+		style, err := f.NewStyle(&excelize.Style{
+			Fill: excelize.Fill{Type: "pattern", Color: []string{colors[i]}, Pattern: 1},
+		})
+		if err != nil {
+			fmt.Println(err)
+		}
+		styles[i] = style
+	}
+	return styles
+}
 
 func printProcsStats(w io.Writer, procs []*m.Process) {
 	fmt.Fprintf(w, "Process\tArrival\tService\tWaiting\tFinish time\tTurnaround (Tr)\tTr/Ts\n")
 	for _, proc := range procs {
 		stats := proc.GetStats()
 		normalizedTurnaround := float64(stats.TurnaroundTime) / float64(stats.ServiceTime)
-		fmt.Fprintf(w, "%d\t%d\t%d\t%d\t%d\t%d\t%f\n", stats.ProcId + 1, stats.EntranceTime, stats.ServiceTime, stats.ReadyOrBlockedTime, stats.ExitTime, stats.TurnaroundTime, normalizedTurnaround)
+		fmt.Fprintf(w, "%d\t%d\t%d\t%d\t%d\t%d\t%f\n", stats.ProcId+1, stats.EntranceTime, stats.ServiceTime, stats.ReadyOrBlockedTime, stats.ExitTime, stats.TurnaroundTime, normalizedTurnaround)
 	}
 }
 
@@ -150,8 +242,17 @@ func main() {
 	}
 
 	defer output.(*os.File).Close()
-	snapshotFunc := func(row string) {
-		snapshotState(output, row)
+	snapshotFunc := func(tick string, cpu []string, io1 string, io2 string) {
+		snapshotState(output, fmt.Sprintf("%3s %s %s %s", tick, strings.Join(cpu, " "), io1, io2))
+	}
+	var f *excelize.File
+	if *exportXlsx != "" {
+		f = getF()
+		colors := generateStyles(f)
+		snapshotFunc = func(tick string, cpu []string, io1 string, io2 string) {
+			snapshotState(output, fmt.Sprintf("%3s %s %s %s", tick, strings.Join(cpu, " "), io1, io2))
+			snapshotStateXlsx(f, *schedAlgo, tick, cpu, io1, io2, colors)
+		}
 	}
 
 	clock := &m.Clock{CurrentTick: 0}
@@ -191,4 +292,9 @@ func main() {
 
 	defer procStatsFile.Close()
 	printProcsStats(procStatsFile, processes)
+	if *exportXlsx != "" {
+		if err := f.SaveAs(*exportXlsx); err != nil {
+			fmt.Println(err)
+		}
+	}
 }

@@ -97,6 +97,9 @@ func (m *Machine) tick() {
 	m.io1Scheduler.ProcessQueue()
 	m.io2Scheduler.ProcessQueue()
 
+	if m.clock.GetCurrentTick() == 0 {
+		m.snapshotStateFunc(m.prepareDumpHeader())
+	}
 	m.snapshotStateFunc(m.dumpState())
 
 	m.clock.CurrentTick++
@@ -170,6 +173,14 @@ func (m *Machine) pushToIO(p *Process) {
 	}
 }
 
+func (m *Machine) prepareDumpHeader() string {
+	cpusHeader := make([]string, m.cpuCount)
+	for i := 0; i < m.cpuCount; i++ {
+		cpusHeader[i] = fmt.Sprintf("CPU%d", i+1)
+	}
+	return fmt.Sprintf("Время %s IO1 IO2", strings.Join(cpusHeader, " "))
+}
+
 // DumpState - prints running processes on each cpu and io in one line
 // output format:
 // {tick} {procid on first cpu} {procid on second cpu} ... {procid on last cpu} {procid on io1} {procid on io2}
@@ -189,7 +200,7 @@ func (m *Machine) dumpState() string {
 	io2 := m.io2Scheduler.GetResource().(*Resource)
 	io2State := resourceStateToString(io2)
 
-	return fmt.Sprintf("%3d | %s | %s %s", m.GetCurrentTick(), cpusString, io1State, io2State)
+	return fmt.Sprintf("%3d %s %s %s", m.GetCurrentTick(), cpusString, io1State, io2State)
 }
 
 func resourceStateToString(r *Resource) string {

@@ -86,7 +86,7 @@ func printProcsStats(w io.Writer, procs []*m.Process) {
 	for _, proc := range procs {
 		stats := proc.GetStats()
 		normalizedTurnaround := float64(stats.TurnaroundTime) / float64(stats.ServiceTime)
-		fmt.Fprintf(w, "%d\t%d\t%d\t%d\t%d\t%d\t%f\n", stats.ProcId, stats.EntranceTime, stats.ServiceTime, stats.ReadyOrBlockedTime, stats.ExitTime, stats.TurnaroundTime, normalizedTurnaround)
+		fmt.Fprintf(w, "%d\t%d\t%d\t%d\t%d\t%d\t%f\n", stats.ProcId + 1, stats.EntranceTime, stats.ServiceTime, stats.ReadyOrBlockedTime, stats.ExitTime, stats.TurnaroundTime, normalizedTurnaround)
 	}
 }
 

@@ -1,6 +1,6 @@
 .*
 !.gitignore
-*.txt
 *.log
+data
 main
 os-solver

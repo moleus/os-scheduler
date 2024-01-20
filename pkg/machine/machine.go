@@ -24,9 +24,10 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"strconv"
 )
 
-type SnapshotStateFunc func(tick string, cpu []string, io1 string, io2 string)
+type SnapshotStateFunc func(state DumpState)
 
 type Machine struct {
 	cpuScheduler Scheduler
@@ -40,11 +41,19 @@ type Machine struct {
 	snapshotStateFunc SnapshotStateFunc
 	cpuCount          int
 }
-
+type DumpState struct {
+	Tick      string
+	CpusState []string
+	Io1State  string
+	Io2State  string
+}
 type Clock struct {
 	CurrentTick int
 }
 
+func NewDumpState(tick string, cpusStateString []string, io1State string, io2State string) DumpState {
+	return DumpState{tick, cpusStateString, io1State, io2State}
+}
 func NewMachine(cpuScheduler Scheduler, io1Scheduler Scheduler, io2Scheduler Scheduler, clock *Clock, logger *slog.Logger, snapshotStateFunc SnapshotStateFunc, cpuCount int) Machine {
 	return Machine{cpuScheduler, io1Scheduler, io2Scheduler, []*Process{}, []*Process{}, clock, logger, snapshotStateFunc, cpuCount}
 }
@@ -172,26 +181,25 @@ func (m *Machine) pushToIO(p *Process) {
 	}
 }
 
-func (m *Machine) prepareDumpHeader() (string, []string, string, string) {
+func (m *Machine) prepareDumpHeader() DumpState {
 	cpusHeader := make([]string, m.cpuCount)
 	for i := 0; i < m.cpuCount; i++ {
 		cpusHeader[i] = fmt.Sprintf("CPU%d", i+1)
 	}
-	return "Tick", cpusHeader, "IO1", "IO2"
+	return NewDumpState("Tick", cpusHeader, "IO1", "IO2")
 }
 
 // DumpState - prints running processes on each cpu and io in one line
 // output format:
 // {tick} {procid on first cpu} {procid on second cpu} ... {procid on last cpu} {procid on io1} {procid on io2}
 // if no proc on cpu or io, output - instead of id
-func (m *Machine) dumpState() (string, []string, string, string) {
+func (m *Machine) dumpState() DumpState {
 	cpusStateString := make([]string, m.cpuCount)
 
 	cpus := m.cpuScheduler.GetResource().(*CpuPool).cpus
 	for i, cpu := range cpus {
 		cpusStateString[i] = resourceStateToString(cpu)
 	}
-	//cpusString := strings.Join(cpusStateString, " ")
 
 	io1 := m.io1Scheduler.GetResource().(*Resource)
 	io1State := resourceStateToString(io1)
@@ -199,8 +207,7 @@ func (m *Machine) dumpState() (string, []string, string, string) {
 	io2 := m.io2Scheduler.GetResource().(*Resource)
 	io2State := resourceStateToString(io2)
 
-	return fmt.Sprintf("%d", m.GetCurrentTick()), cpusStateString, io1State, io2State
-	//return fmt.Sprintf("%3d %s %s %s", m.GetCurrentTick(), cpusString, io1State, io2State)
+	return NewDumpState(strconv.Itoa(m.GetCurrentTick()), cpusStateString, io1State, io2State)
 }
 
 func resourceStateToString(r *Resource) string {

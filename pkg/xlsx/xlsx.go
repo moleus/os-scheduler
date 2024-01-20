@@ -13,7 +13,7 @@ const countOfHardcodedColors = 10
 
 func printRow(f *excelize.File, sheet string, offset int, row int, values []string) {
 	for pos, val := range values {
-		err := f.SetCellValue(sheet, fmt.Sprintf("%s%d", fmt.Sprintf("%c", 'A'+offset+pos), row), val)
+		err := f.SetCellValue(sheet, string(rune('A'+offset+pos))+strconv.Itoa(row), val)
 		if err != nil {
 			return
 		}
@@ -64,9 +64,9 @@ func setStyle(f *excelize.File, spreed string, cell string, val string, colors [
 func GenerateStyles(f *excelize.File) [countOfHardcodedColors]int {
 	colors := [countOfHardcodedColors]string{"E0EBF5", "#93e476", "#efb2b9", "#6a74eb", "#f0b1e4", "#c1b1f0", "#ead669", "#ebaa6a", "#eb836a", "#6aeb71"}
 	var styles [countOfHardcodedColors]int
-	for i := 0; i < countOfHardcodedColors; i++ {
+	for i, color := range colors {
 		style, err := f.NewStyle(&excelize.Style{
-			Fill: excelize.Fill{Type: "pattern", Color: []string{colors[i]}, Pattern: 1},
+			Fill: excelize.Fill{Type: "pattern", Color: []string{color}, Pattern: 1},
 		})
 		if err != nil {
 			fmt.Println(err)
@@ -81,7 +81,7 @@ func SnapshotStateXlsx(f *excelize.File, sheet string, tick string, cpusStateStr
 		return
 	}
 	for pos, val := range cpusStateString {
-		err := f.SetCellValue(sheet, fmt.Sprintf("%s%s", fmt.Sprintf("%c", 'A'+pos+1), tick), val)
+		err := f.SetCellValue(sheet, string('A'+pos+1)+tick, val)
 		if err != nil {
 			return
 		}

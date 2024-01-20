@@ -153,16 +153,16 @@ func main() {
 	}
 
 	defer output.(*os.File).Close()
-	snapshotFunc := func(tick string, cpu []string, io1 string, io2 string) {
-		snapshotState(output, fmt.Sprintf("%3s %s %s %s", tick, strings.Join(cpu, " "), io1, io2))
+	snapshotFunc := func(state m.DumpState) {
+		snapshotState(output, fmt.Sprintf("%3s %s %s %s", state.Tick, strings.Join(state.CpusState, " "), state.Io1State, state.Io2State))
 	}
 	var f *excelize.File
 	if *exportXlsx != "" {
 		f = xlsx.GetF(*exportXlsx, *schedAlgo)
 		colors := xlsx.GenerateStyles(f)
-		snapshotFunc = func(tick string, cpu []string, io1 string, io2 string) {
-			snapshotState(output, fmt.Sprintf("%3s %s %s %s", tick, strings.Join(cpu, " "), io1, io2))
-			xlsx.SnapshotStateXlsx(f, *schedAlgo, tick, cpu, io1, io2, colors, *cpuCount)
+		snapshotFunc = func(state m.DumpState) {
+			snapshotState(output, fmt.Sprintf("%3s %s %s %s", state.Tick, strings.Join(state.CpusState, " "), state.Io1State, state.Io2State))
+			xlsx.SnapshotStateXlsx(f, *schedAlgo, state.Tick, state.CpusState, state.Io1State, state.Io2State, colors, *cpuCount)
 		}
 	}
 

@@ -45,7 +45,7 @@ func GetF(fileName string, sheet string) *excelize.File {
 	}
 	return f
 }
-func setStyle(f *excelize.File, spreed string, cell string, val string, colors [countOfHardcodedColors]int) {
+func setStyle(f *excelize.File, spreed string, column string, row string, val string, colors [countOfHardcodedColors]int) {
 	if val == "-" {
 		return
 	}
@@ -56,11 +56,12 @@ func setStyle(f *excelize.File, spreed string, cell string, val string, colors [
 	if i > countOfHardcodedColors {
 		return
 	}
-	err = f.SetCellStyle(spreed, cell, cell, colors[i])
+	err = f.SetCellStyle(spreed, column+row, column+row, colors[i])
 	if err != nil {
 		panic(err)
 	}
 }
+
 func GenerateStyles(f *excelize.File) [countOfHardcodedColors]int {
 	colors := [countOfHardcodedColors]string{"E0EBF5", "#93e476", "#efb2b9", "#6a74eb", "#f0b1e4", "#c1b1f0", "#ead669", "#ebaa6a", "#eb836a", "#6aeb71"}
 	var styles [countOfHardcodedColors]int
@@ -75,6 +76,7 @@ func GenerateStyles(f *excelize.File) [countOfHardcodedColors]int {
 	}
 	return styles
 }
+
 func SnapshotStateXlsx(f *excelize.File, sheet string, tick string, cpusStateString []string, io1State string, io2State string, colors [countOfHardcodedColors]int, cpuCount int) {
 	err := f.SetCellValue(sheet, fmt.Sprintf("A%s", tick), tick)
 	if err != nil {
@@ -85,18 +87,18 @@ func SnapshotStateXlsx(f *excelize.File, sheet string, tick string, cpusStateStr
 		if err != nil {
 			return
 		}
-		setStyle(f, sheet, fmt.Sprintf("%s%s", fmt.Sprintf("%c", 'A'+pos+1), tick), val, colors)
+		setStyle(f, sheet, string('A'+pos+1), tick, val, colors)
 	}
-	err = f.SetCellValue(sheet, fmt.Sprintf("%s%s", fmt.Sprintf("%c", 'A'+cpuCount+1), tick), io1State)
+	err = f.SetCellValue(sheet, string('A'+cpuCount+1)+tick, io1State)
 	if err != nil {
 		return
 	}
-	setStyle(f, sheet, fmt.Sprintf("%s%s", fmt.Sprintf("%c", 'A'+cpuCount+1), tick), io1State, colors)
-	err = f.SetCellValue(sheet, fmt.Sprintf("%s%s", fmt.Sprintf("%c", 'A'+cpuCount+2), tick), io2State)
+	setStyle(f, sheet, string('A'+cpuCount+1), tick, io1State, colors)
+	err = f.SetCellValue(sheet, string('A'+cpuCount+2)+tick, io2State)
 	if err != nil {
 		return
 	}
-	setStyle(f, sheet, fmt.Sprintf("%s%s", fmt.Sprintf("%c", 'A'+cpuCount+2), tick), io2State, colors)
+	setStyle(f, sheet, string('A'+cpuCount+2), tick, io2State, colors)
 }
 func PrintProcsStats(f *excelize.File, sheet string, procs []*m.Process, offset int) {
 	headers := []string{"Process", "Arrival", "Service", "Waiting", "Finish_time", "Turnaround_(Tr)", "Tr/Ts"}

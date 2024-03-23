@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"github.com/Moleus/os-solver/pkg/xlsx"
+	"github.com/xuri/excelize/v2"
 	"io"
 	"log/slog"
 	"os"
@@ -23,6 +25,7 @@ var (
 	roundRobinQuantum = flag.Int("quantum", 4, "Round robin quantum (default: 4)")
 	arrivalInterval   = flag.Int("interval", 2, "Proc arrival interval (default: 2)")
 	logLevel          = flag.String("log", "debug", "Log level (default: debug)")
+	exportXlsx        = flag.String("export-xlsx", "", "Path for creating xlsx report")
 )
 
 func calcArrivalTime(procId int) int {
@@ -86,7 +89,7 @@ func printProcsStats(w io.Writer, procs []*m.Process) {
 	for _, proc := range procs {
 		stats := proc.GetStats()
 		normalizedTurnaround := float64(stats.TurnaroundTime) / float64(stats.ServiceTime)
-		fmt.Fprintf(w, "%d\t%d\t%d\t%d\t%d\t%d\t%f\n", stats.ProcId + 1, stats.EntranceTime, stats.ServiceTime, stats.ReadyOrBlockedTime, stats.ExitTime, stats.TurnaroundTime, normalizedTurnaround)
+		fmt.Fprintf(w, "%d\t%d\t%d\t%d\t%d\t%d\t%f\n", stats.ProcId+1, stats.EntranceTime, stats.ServiceTime, stats.ReadyOrBlockedTime, stats.ExitTime, stats.TurnaroundTime, normalizedTurnaround)
 	}
 }
 
@@ -150,8 +153,17 @@ func main() {
 	}
 
 	defer output.(*os.File).Close()
-	snapshotFunc := func(row string) {
-		snapshotState(output, row)
+	snapshotFunc := func(state m.DumpState) {
+		snapshotState(output, fmt.Sprintf("%3s %s %s %s", state.Tick, strings.Join(state.CpusState, " "), state.Io1State, state.Io2State))
+	}
+	var f *excelize.File
+	if *exportXlsx != "" {
+		f = xlsx.GetF(*exportXlsx, *schedAlgo)
+		colors := xlsx.GenerateStyles(f)
+		snapshotFunc = func(state m.DumpState) {
+			snapshotState(output, fmt.Sprintf("%3s %s %s %s", state.Tick, strings.Join(state.CpusState, " "), state.Io1State, state.Io2State))
+			xlsx.SnapshotStateXlsx(f, *schedAlgo, state.Tick, state.CpusState, state.Io1State, state.Io2State, colors, *cpuCount)
+		}
 	}
 
 	clock := &m.Clock{CurrentTick: 0}
@@ -191,4 +203,8 @@ func main() {
 
 	defer procStatsFile.Close()
 	printProcsStats(procStatsFile, processes)
+	if *exportXlsx != "" {
+		xlsx.PrintProcsStats(f, *schedAlgo, processes, 1+*cpuCount+2+1)
+		xlsx.SaveReport(f, *exportXlsx)
+	}
 }
